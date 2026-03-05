@@ -163,10 +163,8 @@ function DigCrater({ active }: { active: boolean }) {
 
 // ─── Player Character ─────────────────────────────────────────────────────────
 function PlayerCharacter({
-  w,
   isDigging,
 }: {
-  w: number;
   isDigging: boolean;
 }) {
   const torsoRef = useRef<THREE.Mesh>(null);
@@ -190,8 +188,8 @@ function PlayerCharacter({
     }
   });
 
-  // Position the character to the side so the center dig zone stays clickable
-  const charX = w * 0.3;
+  // Position the character near the dig zone
+  const charX = 8;
 
   return (
     <group position={[charX, 0.65, 0.4]} rotation={[0, -0.4, 0]}>
@@ -310,9 +308,9 @@ function SceneContent({
 
   const { camera } = useThree();
 
-  // Set camera position based on baseSize
+  // Set camera position for wide 100x100 map
   useFrame(() => {
-    const targetZ = 14 + baseSize * 2;
+    const targetZ = 80;
     camera.position.z += (targetZ - camera.position.z) * 0.05;
   });
 
@@ -337,7 +335,7 @@ function SceneContent({
     setParticles((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
-  const w = 8 + baseSize * 2.5;
+  const w = 100;
 
   return (
     <>
@@ -382,7 +380,7 @@ function SceneContent({
       <MeteoriteGlow baseSize={baseSize} visible={true} />
 
       {/* Player Character */}
-      <PlayerCharacter w={w} isDigging={isDigging} />
+      <PlayerCharacter isDigging={isDigging} />
 
       {/* Clickable dig surface */}
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: Three.js mesh, not a DOM element */}
@@ -414,11 +412,11 @@ function SceneContent({
       ))}
 
       <OrbitControls
-        enablePan={false}
+        enablePan={true}
         minPolarAngle={Math.PI / 6}
         maxPolarAngle={Math.PI / 2.2}
-        minDistance={5}
-        maxDistance={24 + baseSize * 3}
+        minDistance={10}
+        maxDistance={200}
         target={[0, -0.5, 0]}
       />
     </>
@@ -619,7 +617,7 @@ export default function DiggingScene() {
       >
         <Canvas
           shadows
-          camera={{ position: [0, 4, 16], fov: 60 }}
+          camera={{ position: [0, 20, 80], fov: 60 }}
           style={{ background: "#87CEEB" }}
           gl={{ antialias: true, alpha: false }}
         >
