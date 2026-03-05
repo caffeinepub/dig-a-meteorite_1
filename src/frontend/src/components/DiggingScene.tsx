@@ -423,35 +423,172 @@ function SceneContent({
   );
 }
 
+// ─── Rarity tier helpers ─────────────────────────────────────────────────────
+function getRarityTier(
+  rarity: Rarity,
+): "common" | "uncommon" | "rare" | "epic" | "legendary" {
+  if (["googleplex", "crazy", "divine"].includes(rarity)) return "legendary";
+  if (["celestial", "secret", "god"].includes(rarity)) return "epic";
+  if (["mythic", "legendary"].includes(rarity)) return "rare";
+  if (rarity === "epic") return "uncommon";
+  return "common";
+}
+
 // ─── HUD Overlay ──────────────────────────────────────────────────────────────
-function RarityPopup({ rarity, key: _k }: { rarity: Rarity; key: number }) {
+function RarityRevealOverlay({
+  rarity,
+  onDone,
+}: { rarity: Rarity; id: number; onDone: () => void }) {
   const color = RARITY_COLORS[rarity];
   const label = RARITY_LABELS[rarity];
+  const tier = getRarityTier(rarity);
 
-  const isSpecial = ["divine", "crazy", "googleplex"].includes(rarity);
-  const isRare = ["god", "secret", "celestial"].includes(rarity);
+  const overlayAlpha =
+    tier === "legendary"
+      ? 0.92
+      : tier === "epic"
+        ? 0.85
+        : tier === "rare"
+          ? 0.78
+          : tier === "uncommon"
+            ? 0.68
+            : 0.55;
+
+  const displayDuration =
+    tier === "legendary"
+      ? 2.6
+      : tier === "epic"
+        ? 2.2
+        : tier === "rare"
+          ? 1.9
+          : tier === "uncommon"
+            ? 1.6
+            : 1.2;
+
+  const emoji =
+    tier === "legendary"
+      ? "✨"
+      : tier === "epic"
+        ? "⭐"
+        : tier === "rare"
+          ? "💫"
+          : "";
+
+  // Shimmer animation for the highest tiers
+  const showShimmer = tier === "legendary" || tier === "epic";
 
   return (
     <motion.div
-      initial={{ y: 20, opacity: 0, scale: 0.8 }}
-      animate={{ y: -60, opacity: [0, 1, 1, 0], scale: [0.8, 1.2, 1.1, 0.9] }}
-      transition={{ duration: 1.8, ease: "easeOut" }}
-      className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 z-20"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: [0, overlayAlpha, overlayAlpha, 0] }}
+      transition={{
+        duration: displayDuration,
+        times: [0, 0.12, 0.72, 1],
+        ease: "easeInOut",
+      }}
+      onAnimationComplete={onDone}
+      className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center"
+      style={{ background: `rgba(0,0,0,${overlayAlpha})` }}
     >
-      <div
-        className="px-4 py-2 rounded-full font-display font-bold text-sm md:text-base whitespace-nowrap"
+      {/* Colour splash backdrop behind text */}
+      <motion.div
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: [0, 1.6, 1.4], opacity: [0, 0.18, 0] }}
+        transition={{ duration: displayDuration * 0.8, ease: "easeOut" }}
+        className="absolute rounded-full"
         style={{
-          color: color,
+          width: 420,
+          height: 420,
+          background: `radial-gradient(circle, ${color} 0%, transparent 70%)`,
+        }}
+      />
+
+      {/* Main rarity card */}
+      <motion.div
+        initial={{ scale: 0.5, opacity: 0, y: 30 }}
+        animate={{
+          scale: [0.5, 1.15, 1.0],
+          opacity: [0, 1, 1],
+          y: [30, -8, 0],
+        }}
+        transition={{ duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
+        className="relative flex flex-col items-center gap-3 px-10 py-7 rounded-3xl"
+        style={{
+          background: `linear-gradient(135deg, rgba(0,0,0,0.85), ${color}18)`,
           border: `2px solid ${color}`,
-          backgroundColor: `${color}22`,
-          boxShadow: `0 0 ${isSpecial ? 30 : isRare ? 16 : 8}px ${isSpecial ? 10 : isRare ? 5 : 3}px ${color}`,
-          textShadow: `0 0 10px ${color}`,
+          boxShadow: `0 0 60px 20px ${color}55, 0 0 120px 40px ${color}22, inset 0 1px 0 ${color}44`,
         }}
       >
-        {isSpecial ? "✨ " : isRare ? "⭐ " : ""}
-        {label.toUpperCase()} FOUND!
-        {isSpecial ? " ✨" : ""}
-      </div>
+        {/* Shimmer sweep for top tiers */}
+        {showShimmer && (
+          <motion.div
+            className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none"
+            style={{ zIndex: 1 }}
+          >
+            <motion.div
+              className="absolute inset-0"
+              animate={{ x: ["-120%", "220%"] }}
+              transition={{ duration: 1.1, delay: 0.3, ease: "easeInOut" }}
+              style={{
+                background:
+                  "linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.18) 50%, transparent 65%)",
+                transform: "skewX(-15deg)",
+              }}
+            />
+          </motion.div>
+        )}
+
+        {/* Emoji row */}
+        {emoji && (
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: [0, 1.3, 1] }}
+            transition={{ delay: 0.15, duration: 0.4 }}
+            className="text-3xl"
+            style={{ zIndex: 2 }}
+          >
+            {emoji}
+          </motion.div>
+        )}
+
+        {/* "YOU FOUND A" label */}
+        <span
+          className="text-xs font-mono tracking-[0.3em] uppercase"
+          style={{ color: `${color}cc`, zIndex: 2 }}
+        >
+          You Found A
+        </span>
+
+        {/* Rarity name */}
+        <motion.span
+          initial={{ letterSpacing: "0.05em" }}
+          animate={{ letterSpacing: ["0.05em", "0.18em", "0.12em"] }}
+          transition={{ delay: 0.2, duration: 0.6 }}
+          className="font-display font-black text-4xl md:text-5xl uppercase"
+          style={{
+            color: color,
+            textShadow: `0 0 30px ${color}, 0 0 60px ${color}88`,
+            zIndex: 2,
+          }}
+        >
+          {label}
+        </motion.span>
+
+        {/* Tier badge */}
+        {tier !== "common" && (
+          <span
+            className="text-xs font-bold font-mono px-3 py-0.5 rounded-full uppercase tracking-widest"
+            style={{
+              background: `${color}22`,
+              color: color,
+              border: `1px solid ${color}66`,
+              zIndex: 2,
+            }}
+          >
+            {tier}
+          </span>
+        )}
+      </motion.div>
     </motion.div>
   );
 }
@@ -537,9 +674,10 @@ function getPanelTitle(panel: Exclude<ActivePanel, null>) {
 export default function DiggingScene() {
   const { credits, totalFound, baseSize, multiplier, digMeteor } =
     useGameStore();
-  const [recentFinds, setRecentFinds] = useState<
-    { rarity: Rarity; id: number }[]
-  >([]);
+  const [currentReveal, setCurrentReveal] = useState<{
+    rarity: Rarity;
+    id: number;
+  } | null>(null);
   const [isDigging, setIsDigging] = useState(false);
   const [shakeContainer, setShakeContainer] = useState(false);
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
@@ -553,13 +691,10 @@ export default function DiggingScene() {
     const rarity = digMeteor();
 
     const id = popupId.current++;
-    setRecentFinds((prev) => [...prev.slice(-4), { rarity, id }]);
+    setCurrentReveal({ rarity, id });
 
     setTimeout(() => setIsDigging(false), 300);
     setTimeout(() => setShakeContainer(false), 400);
-    setTimeout(() => {
-      setRecentFinds((prev) => prev.filter((f) => f.id !== id));
-    }, 2000);
   }, [isDigging, digMeteor]);
 
   const togglePanel = useCallback((id: Exclude<ActivePanel, null>) => {
@@ -631,14 +766,17 @@ export default function DiggingScene() {
         </Canvas>
       </div>
 
-      {/* Rarity Popups */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <AnimatePresence>
-          {recentFinds.map((find) => (
-            <RarityPopup key={find.id} rarity={find.rarity} />
-          ))}
-        </AnimatePresence>
-      </div>
+      {/* Rarity Reveal Overlay */}
+      <AnimatePresence>
+        {currentReveal && (
+          <RarityRevealOverlay
+            key={currentReveal.id}
+            rarity={currentReveal.rarity}
+            id={currentReveal.id}
+            onDone={() => setCurrentReveal(null)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Quick-Access Panel Buttons — left side vertical strip */}
       <div className="absolute left-3 bottom-20 z-20 flex flex-col gap-2">
