@@ -1,4 +1,4 @@
-import { OrbitControls, Stars } from "@react-three/drei";
+import { OrbitControls, Sky } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Zap } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -193,30 +193,28 @@ function SceneContent({
 
   return (
     <>
-      {/* Lighting */}
-      <ambientLight intensity={0.4} />
-      <pointLight
-        position={[3, 5, 3]}
-        intensity={2}
-        castShadow
-        color="#c4a882"
-      />
-      <pointLight position={[-3, 3, -2]} intensity={0.8} color="#6366f1" />
+      {/* Lighting — bright daytime */}
+      <ambientLight intensity={2.5} color="#ffffff" />
       <directionalLight
-        position={[0, 8, 4]}
-        intensity={1}
+        position={[10, 15, 5]}
+        intensity={3}
         castShadow
-        color="#fff5e0"
+        color="#fffde7"
+      />
+      {/* Soft fill light from opposite side */}
+      <directionalLight
+        position={[-8, 6, -4]}
+        intensity={1.0}
+        color="#cce8ff"
       />
 
-      {/* Stars in background */}
-      <Stars
-        radius={50}
-        depth={20}
-        count={800}
-        factor={2}
-        saturation={0}
-        fade
+      {/* Daytime sky */}
+      <Sky
+        sunPosition={[100, 20, 100]}
+        turbidity={2}
+        rayleigh={0.5}
+        mieCoefficient={0.005}
+        mieDirectionalG={0.8}
       />
 
       {/* Earth Layers */}
@@ -389,8 +387,8 @@ export default function DiggingScene() {
         <Canvas
           shadows
           camera={{ position: [0, 2, 5], fov: 60 }}
-          style={{ background: "transparent" }}
-          gl={{ antialias: true, alpha: true }}
+          style={{ background: "#87CEEB" }}
+          gl={{ antialias: true, alpha: false }}
         >
           <Suspense fallback={null}>
             <SceneContent baseSize={baseSize} onDig={handleDig} />
