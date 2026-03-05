@@ -312,7 +312,7 @@ function SceneContent({
 
   // Set camera position based on baseSize
   useFrame(() => {
-    const targetZ = 7 + baseSize * 1.2;
+    const targetZ = 14 + baseSize * 2;
     camera.position.z += (targetZ - camera.position.z) * 0.05;
   });
 
@@ -337,7 +337,7 @@ function SceneContent({
     setParticles((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
-  const w = 4 + baseSize * 1.5;
+  const w = 8 + baseSize * 2.5;
 
   return (
     <>
@@ -417,8 +417,8 @@ function SceneContent({
         enablePan={false}
         minPolarAngle={Math.PI / 6}
         maxPolarAngle={Math.PI / 2.2}
-        minDistance={3}
-        maxDistance={12 + baseSize * 2}
+        minDistance={5}
+        maxDistance={24 + baseSize * 3}
         target={[0, -0.5, 0]}
       />
     </>
@@ -619,7 +619,7 @@ export default function DiggingScene() {
       >
         <Canvas
           shadows
-          camera={{ position: [0, 3, 9], fov: 55 }}
+          camera={{ position: [0, 4, 16], fov: 60 }}
           style={{ background: "#87CEEB" }}
           gl={{ antialias: true, alpha: false }}
         >
