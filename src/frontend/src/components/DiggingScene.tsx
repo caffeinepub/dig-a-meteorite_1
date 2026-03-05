@@ -1,15 +1,30 @@
 import { OrbitControls, Sky } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Zap } from "lucide-react";
+import {
+  Coins,
+  FlaskConical,
+  Package,
+  RotateCcw,
+  ShoppingBag,
+  X,
+  Zap,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { Suspense, useCallback, useRef, useState } from "react";
 import type * as THREE from "three";
+import CreditsMachine from "./CreditsMachine";
+import FuseMachine from "./FuseMachine";
 import {
   RARITY_COLORS,
   RARITY_LABELS,
   type Rarity,
   useGameStore,
 } from "./GameStore";
+import InventoryPanel from "./InventoryPanel";
+import RebirthPanel from "./RebirthPanel";
+import SellShop from "./SellShop";
+
+type ActivePanel = "fuse" | "credits" | "shop" | "rebirth" | "inventory" | null;
 
 // ─── Earth Layer Component ───────────────────────────────────────────────────
 function EarthLayer({
@@ -146,13 +161,146 @@ function DigCrater({ active }: { active: boolean }) {
   );
 }
 
+// ─── Player Character ─────────────────────────────────────────────────────────
+function PlayerCharacter({
+  w,
+  isDigging,
+}: {
+  w: number;
+  isDigging: boolean;
+}) {
+  const torsoRef = useRef<THREE.Mesh>(null);
+  const rightArmGroupRef = useRef<THREE.Group>(null);
+  const t = useRef(0);
+  const armAngle = useRef(0);
+
+  useFrame((_state, delta) => {
+    t.current += delta;
+
+    // Idle breathing — subtle y-scale pulse on torso
+    if (torsoRef.current) {
+      torsoRef.current.scale.y = 1 + Math.sin(t.current * 1.8) * 0.025;
+    }
+
+    // Dig swing animation on right arm group
+    if (rightArmGroupRef.current) {
+      const targetAngle = isDigging ? -1.2 : 0;
+      armAngle.current += (targetAngle - armAngle.current) * (delta * 10);
+      rightArmGroupRef.current.rotation.x = armAngle.current;
+    }
+  });
+
+  // Position the character to the side so the center dig zone stays clickable
+  const charX = w * 0.3;
+
+  return (
+    <group position={[charX, 0.65, 0.4]} rotation={[0, -0.4, 0]}>
+      {/* Head */}
+      <mesh position={[0, 0.85, 0]} castShadow>
+        <sphereGeometry args={[0.18, 12, 12]} />
+        <meshStandardMaterial color="#e8b88a" roughness={0.8} />
+      </mesh>
+
+      {/* Eyes */}
+      <mesh position={[-0.07, 0.88, 0.17]}>
+        <sphereGeometry args={[0.025, 8, 8]} />
+        <meshStandardMaterial color="#2c1a0e" />
+      </mesh>
+      <mesh position={[0.07, 0.88, 0.17]}>
+        <sphereGeometry args={[0.025, 8, 8]} />
+        <meshStandardMaterial color="#2c1a0e" />
+      </mesh>
+
+      {/* Hair */}
+      <mesh position={[0, 0.98, 0]}>
+        <sphereGeometry args={[0.185, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        <meshStandardMaterial color="#3b1f0a" roughness={1} />
+      </mesh>
+
+      {/* Torso — blue shirt */}
+      <mesh ref={torsoRef} position={[0, 0.38, 0]} castShadow>
+        <boxGeometry args={[0.32, 0.42, 0.2]} />
+        <meshStandardMaterial color="#2563eb" roughness={0.8} />
+      </mesh>
+
+      {/* Left Arm */}
+      <mesh position={[-0.22, 0.36, 0]} castShadow>
+        <boxGeometry args={[0.1, 0.38, 0.12]} />
+        <meshStandardMaterial color="#2563eb" roughness={0.8} />
+      </mesh>
+      {/* Left hand */}
+      <mesh position={[-0.22, 0.14, 0]}>
+        <sphereGeometry args={[0.065, 8, 8]} />
+        <meshStandardMaterial color="#e8b88a" roughness={0.8} />
+      </mesh>
+
+      {/* Right Arm Group — swings with pickaxe */}
+      <group ref={rightArmGroupRef} position={[0.22, 0.55, 0]}>
+        {/* Right Arm */}
+        <mesh position={[0, -0.19, 0]} castShadow>
+          <boxGeometry args={[0.1, 0.38, 0.12]} />
+          <meshStandardMaterial color="#2563eb" roughness={0.8} />
+        </mesh>
+        {/* Right hand */}
+        <mesh position={[0, -0.41, 0]}>
+          <sphereGeometry args={[0.065, 8, 8]} />
+          <meshStandardMaterial color="#e8b88a" roughness={0.8} />
+        </mesh>
+
+        {/* Pickaxe handle */}
+        <mesh position={[0.04, -0.6, 0]} rotation={[0, 0, 0.15]} castShadow>
+          <boxGeometry args={[0.04, 0.42, 0.04]} />
+          <meshStandardMaterial color="#7c5230" roughness={0.95} />
+        </mesh>
+        {/* Pickaxe head */}
+        <mesh
+          position={[0.04, -0.84, 0]}
+          rotation={[0, 0, Math.PI / 2]}
+          castShadow
+        >
+          <boxGeometry args={[0.08, 0.28, 0.06]} />
+          <meshStandardMaterial
+            color="#6b7280"
+            roughness={0.4}
+            metalness={0.6}
+          />
+        </mesh>
+      </group>
+
+      {/* Legs — brown pants */}
+      {/* Left leg */}
+      <mesh position={[-0.09, 0.0, 0]} castShadow>
+        <boxGeometry args={[0.12, 0.34, 0.14]} />
+        <meshStandardMaterial color="#7c4a14" roughness={0.9} />
+      </mesh>
+      {/* Right leg */}
+      <mesh position={[0.09, 0.0, 0]} castShadow>
+        <boxGeometry args={[0.12, 0.34, 0.14]} />
+        <meshStandardMaterial color="#7c4a14" roughness={0.9} />
+      </mesh>
+
+      {/* Boots */}
+      <mesh position={[-0.09, -0.19, 0.02]}>
+        <boxGeometry args={[0.13, 0.1, 0.17]} />
+        <meshStandardMaterial color="#2c1a0e" roughness={1} />
+      </mesh>
+      <mesh position={[0.09, -0.19, 0.02]}>
+        <boxGeometry args={[0.13, 0.1, 0.17]} />
+        <meshStandardMaterial color="#2c1a0e" roughness={1} />
+      </mesh>
+    </group>
+  );
+}
+
 // ─── Scene Content ────────────────────────────────────────────────────────────
 function SceneContent({
   baseSize,
   onDig,
+  isDigging,
 }: {
   baseSize: number;
   onDig: () => void;
+  isDigging: boolean;
 }) {
   const [particles, setParticles] = useState<
     { id: number; pos: [number, number, number] }[]
@@ -164,7 +312,7 @@ function SceneContent({
 
   // Set camera position based on baseSize
   useFrame(() => {
-    const targetZ = 4 + baseSize * 0.5;
+    const targetZ = 7 + baseSize * 1.2;
     camera.position.z += (targetZ - camera.position.z) * 0.05;
   });
 
@@ -189,7 +337,7 @@ function SceneContent({
     setParticles((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
-  const w = 2 + baseSize * 0.8;
+  const w = 4 + baseSize * 1.5;
 
   return (
     <>
@@ -233,6 +381,9 @@ function SceneContent({
       {/* Meteorite glow effect */}
       <MeteoriteGlow baseSize={baseSize} visible={true} />
 
+      {/* Player Character */}
+      <PlayerCharacter w={w} isDigging={isDigging} />
+
       {/* Clickable dig surface */}
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: Three.js mesh, not a DOM element */}
       <mesh
@@ -266,8 +417,8 @@ function SceneContent({
         enablePan={false}
         minPolarAngle={Math.PI / 6}
         maxPolarAngle={Math.PI / 2.2}
-        minDistance={2}
-        maxDistance={8 + baseSize}
+        minDistance={3}
+        maxDistance={12 + baseSize * 2}
         target={[0, -0.5, 0]}
       />
     </>
@@ -307,6 +458,83 @@ function RarityPopup({ rarity, key: _k }: { rarity: Rarity; key: number }) {
   );
 }
 
+// ─── Quick Access Panel Buttons ──────────────────────────────────────────────
+type PanelButtonDef = {
+  id: Exclude<ActivePanel, null>;
+  IconComponent: React.ComponentType<{ className?: string }>;
+  label: string;
+  color: string;
+  ocid: string;
+};
+
+const PANEL_BUTTONS: PanelButtonDef[] = [
+  {
+    id: "fuse",
+    IconComponent: FlaskConical,
+    label: "Fuse",
+    color: "#7c3aed",
+    ocid: "dig.fuse_button",
+  },
+  {
+    id: "credits",
+    IconComponent: Coins,
+    label: "Credits",
+    color: "#eab308",
+    ocid: "dig.credits_button",
+  },
+  {
+    id: "shop",
+    IconComponent: ShoppingBag,
+    label: "Shop",
+    color: "#22c55e",
+    ocid: "dig.shop_button",
+  },
+  {
+    id: "rebirth",
+    IconComponent: RotateCcw,
+    label: "Rebirth",
+    color: "#f97316",
+    ocid: "dig.rebirth_button",
+  },
+  {
+    id: "inventory",
+    IconComponent: Package,
+    label: "Items",
+    color: "#06b6d4",
+    ocid: "dig.inventory_button",
+  },
+];
+
+function renderPanelContent(panel: Exclude<ActivePanel, null>) {
+  switch (panel) {
+    case "fuse":
+      return <FuseMachine />;
+    case "credits":
+      return <CreditsMachine />;
+    case "shop":
+      return <SellShop />;
+    case "rebirth":
+      return <RebirthPanel />;
+    case "inventory":
+      return <InventoryPanel />;
+  }
+}
+
+function getPanelTitle(panel: Exclude<ActivePanel, null>) {
+  switch (panel) {
+    case "fuse":
+      return "⚗️ Fuse Machine";
+    case "credits":
+      return "💳 Caffeine Credits";
+    case "shop":
+      return "🛒 Sell Shop";
+    case "rebirth":
+      return "🔄 Rebirth";
+    case "inventory":
+      return "🎒 Collection";
+  }
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function DiggingScene() {
   const { credits, totalFound, baseSize, multiplier, digMeteor } =
@@ -316,6 +544,7 @@ export default function DiggingScene() {
   >([]);
   const [isDigging, setIsDigging] = useState(false);
   const [shakeContainer, setShakeContainer] = useState(false);
+  const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const popupId = useRef(0);
 
   const handleDig = useCallback(() => {
@@ -335,6 +564,10 @@ export default function DiggingScene() {
     }, 2000);
   }, [isDigging, digMeteor]);
 
+  const togglePanel = useCallback((id: Exclude<ActivePanel, null>) => {
+    setActivePanel((prev) => (prev === id ? null : id));
+  }, []);
+
   const formatCredits = (n: number) => {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
     if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
@@ -342,7 +575,7 @@ export default function DiggingScene() {
   };
 
   return (
-    <div className="relative w-full h-full flex flex-col">
+    <div className="relative w-full h-full flex flex-col overflow-hidden">
       {/* HUD Top Bar */}
       <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 py-2 pointer-events-none">
         <div className="flex gap-3">
@@ -386,12 +619,16 @@ export default function DiggingScene() {
       >
         <Canvas
           shadows
-          camera={{ position: [0, 2, 5], fov: 60 }}
+          camera={{ position: [0, 3, 9], fov: 55 }}
           style={{ background: "#87CEEB" }}
           gl={{ antialias: true, alpha: false }}
         >
           <Suspense fallback={null}>
-            <SceneContent baseSize={baseSize} onDig={handleDig} />
+            <SceneContent
+              baseSize={baseSize}
+              onDig={handleDig}
+              isDigging={isDigging}
+            />
           </Suspense>
         </Canvas>
       </div>
@@ -403,6 +640,49 @@ export default function DiggingScene() {
             <RarityPopup key={find.id} rarity={find.rarity} />
           ))}
         </AnimatePresence>
+      </div>
+
+      {/* Quick-Access Panel Buttons — left side vertical strip */}
+      <div className="absolute left-3 bottom-20 z-20 flex flex-col gap-2">
+        {PANEL_BUTTONS.map((btn) => {
+          const isActive = activePanel === btn.id;
+          const { IconComponent } = btn;
+          return (
+            <motion.button
+              key={btn.id}
+              type="button"
+              data-ocid={btn.ocid}
+              onClick={() => togglePanel(btn.id)}
+              whileHover={{ scale: 1.1, x: 4 }}
+              whileTap={{ scale: 0.92 }}
+              className="w-10 h-10 rounded-xl flex items-center justify-center transition-all relative group"
+              style={{
+                background: isActive ? `${btn.color}cc` : "rgba(10,10,20,0.72)",
+                border: `1.5px solid ${isActive ? btn.color : "rgba(255,255,255,0.12)"}`,
+                boxShadow: isActive
+                  ? `0 0 14px 4px ${btn.color}66`
+                  : "0 2px 8px rgba(0,0,0,0.4)",
+                color: isActive ? "#fff" : btn.color,
+                backdropFilter: "blur(8px)",
+              }}
+              title={btn.label}
+            >
+              <IconComponent className="w-5 h-5" />
+              {/* Tooltip label */}
+              <span
+                className="absolute left-full ml-2 px-2 py-0.5 rounded-md text-xs font-bold font-mono whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{
+                  background: "rgba(10,10,20,0.9)",
+                  color: btn.color,
+                  border: `1px solid ${btn.color}44`,
+                  backdropFilter: "blur(8px)",
+                }}
+              >
+                {btn.label}
+              </span>
+            </motion.button>
+          );
+        })}
       </div>
 
       {/* DIG Button */}
@@ -451,6 +731,74 @@ export default function DiggingScene() {
           </div>
         )}
       </div>
+
+      {/* Slide-Up Feature Panel */}
+      <AnimatePresence>
+        {activePanel && (
+          <>
+            {/* Backdrop — clicking closes panel */}
+            <motion.div
+              key="backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="absolute inset-0 z-30"
+              style={{
+                background: "rgba(0,0,0,0.45)",
+                backdropFilter: "blur(2px)",
+              }}
+              onClick={() => setActivePanel(null)}
+            />
+
+            {/* Panel */}
+            <motion.div
+              key={activePanel}
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 320, damping: 34 }}
+              className="absolute bottom-0 left-0 right-0 z-40 rounded-t-2xl flex flex-col overflow-hidden"
+              style={{
+                height: "62%",
+                background: "oklch(var(--card))",
+                border: "1px solid oklch(var(--border))",
+                borderBottom: "none",
+                boxShadow: "0 -8px 40px rgba(0,0,0,0.6)",
+              }}
+            >
+              {/* Panel header */}
+              <div
+                className="flex items-center justify-between px-4 py-3 flex-shrink-0"
+                style={{ borderBottom: "1px solid oklch(var(--border))" }}
+              >
+                <span className="font-display font-bold text-base text-foreground">
+                  {getPanelTitle(activePanel)}
+                </span>
+                <motion.button
+                  type="button"
+                  data-ocid="dig.panel_close_button"
+                  onClick={() => setActivePanel(null)}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  className="w-7 h-7 rounded-full flex items-center justify-center"
+                  style={{
+                    background: "oklch(var(--muted))",
+                    color: "oklch(var(--muted-foreground))",
+                  }}
+                >
+                  <X className="w-4 h-4" />
+                </motion.button>
+              </div>
+
+              {/* Panel content */}
+              <div className="flex-1 overflow-hidden">
+                {renderPanelContent(activePanel)}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -1,12 +1,11 @@
 import {
   createActor,
   type backendInterface,
+  type CreateActorOptions,
+  ExternalBlob,
 } from "./backend";
-
-interface CreateActorOptions {
-  agentOptions?: object;
-}
-
+import { StorageClient } from "./utils/StorageClient";
+import { HttpAgent } from "@icp-sdk/core/agent";
 
 const DEFAULT_STORAGE_GATEWAY_URL = "https://blob.caffeine.ai";
 const DEFAULT_BUCKET_NAME = "default-bucket";
@@ -81,7 +80,18 @@ export async function loadConfig(): Promise<Config> {
   }
 }
 
+function extractAgentErrorMessage(error: string): string {
+  const errorString = String(error);
+  const match = errorString.match(/with message:\s*'([^']+)'/s);
+  return match ? match[1] : errorString;
+}
 
+function processError(e: unknown): never {
+  if (e && typeof e === "object" && "message" in e) {
+    throw new Error(extractAgentErrorMessage(`${e.message}`));
+  }
+  throw e;
+}
 
 async function maybeLoadMockBackend(): Promise<backendInterface | null> {
   if (import.meta.env.VITE_USE_MOCK !== "true") {
@@ -117,8 +127,53 @@ export async function createActorWithConfig(
 
   const config = await loadConfig();
   const resolvedOptions = options ?? {};
+  const agent = new HttpAgent({
+    ...resolvedOptions.agentOptions,
+    host: config.backend_host,
+  });
+  if (config.backend_host?.includes("localhost")) {
+    await agent.fetchRootKey().catch((err) => {
+      console.warn(
+        "Unable to fetch root key. Check to ensure that your local replica is running",
+      );
+      console.error(err);
+    });
+  }
+  const actorOptions = {
+    ...resolvedOptions,
+    agent: agent,
+    processError,
+  };
+
+  const storageClient = new StorageClient(
+    config.bucket_name,
+    config.storage_gateway_url,
+    config.backend_canister_id,
+    config.project_id,
+    agent,
+  );
+
+  const MOTOKO_DEDUPLICATION_SENTINEL = "!caf!";
+
+  const uploadFile = async (file: ExternalBlob): Promise<Uint8Array> => {
+    const { hash } = await storageClient.putFile(
+      await file.getBytes(),
+      file.onProgress,
+    );
+    return new TextEncoder().encode(MOTOKO_DEDUPLICATION_SENTINEL + hash);
+  };
+
+  const downloadFile = async (bytes: Uint8Array): Promise<ExternalBlob> => {
+    const hashWithPrefix = new TextDecoder().decode(new Uint8Array(bytes));
+    const hash = hashWithPrefix.substring(MOTOKO_DEDUPLICATION_SENTINEL.length);
+    const url = await storageClient.getDirectURL(hash);
+    return ExternalBlob.fromURL(url);
+  };
+
   return createActor(
     config.backend_canister_id,
-    { agentOptions: { ...resolvedOptions.agentOptions, host: config.backend_host } },
+    uploadFile,
+    downloadFile,
+    actorOptions,
   );
 }

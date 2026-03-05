@@ -10,6 +10,7 @@ import {
 } from "./GameStore";
 
 const ADMIN_CODE = "9999";
+const CELESTIAL_CODE = "3752";
 
 export default function AdminPanel() {
   const [code, setCode] = useState("");
@@ -39,6 +40,12 @@ export default function AdminPanel() {
       setUnlocked(true);
       setError(false);
       toast.success("Admin access granted.", { duration: 2000 });
+    } else if (code === CELESTIAL_CODE) {
+      adminAddMeteors("celestial", 1);
+      setCode("");
+      toast.success("✨ You received 1 FREE Celestial meteorite!", {
+        duration: 3500,
+      });
     } else {
       setError(true);
       setCode("");
