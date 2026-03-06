@@ -27,7 +27,7 @@ type Tab =
   | "inventory"
   | "shop"
   | "fuse"
-  | "credits"
+  | "coins"
   | "rebirth"
   | "admin";
 
@@ -68,10 +68,10 @@ const TABS: {
     ocid: "nav.fuse.tab",
   },
   {
-    id: "credits",
-    label: "Credits",
+    id: "coins",
+    label: "Coins",
     icon: <Coins className="w-4 h-4" />,
-    ocid: "nav.credits.tab",
+    ocid: "nav.coins.tab",
   },
   {
     id: "rebirth",
@@ -81,7 +81,7 @@ const TABS: {
   },
   {
     id: "admin",
-    label: "Admin",
+    label: "Code Panel",
     icon: <Lock className="w-4 h-4" />,
     ocid: "nav.admin.tab",
   },
@@ -99,7 +99,7 @@ function renderTab(tab: Tab, onNavigate: (t: string) => void) {
       return <SellShop />;
     case "fuse":
       return <FuseMachine />;
-    case "credits":
+    case "coins":
       return <CreditsMachine />;
     case "rebirth":
       return <RebirthPanel />;
@@ -164,7 +164,7 @@ export default function App() {
         </nav>
 
         <div className="flex gap-4 text-xs font-mono">
-          <span className="text-yellow-400">{formatNum(credits)} ✦</span>
+          <span className="text-yellow-400">🪙 {formatNum(credits)}</span>
           <span className="text-cyan-400">{formatNum(totalFound)} found</span>
         </div>
       </div>
@@ -178,7 +178,7 @@ export default function App() {
           </span>
         </div>
         <div className="flex gap-3 text-xs font-mono">
-          <span className="text-yellow-400">{formatNum(credits)} ✦</span>
+          <span className="text-yellow-400">🪙 {formatNum(credits)}</span>
           <span className="text-cyan-400">{formatNum(totalFound)}</span>
         </div>
       </div>

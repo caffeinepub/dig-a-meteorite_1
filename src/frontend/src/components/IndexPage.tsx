@@ -1,3 +1,12 @@
+import {
+  Coins,
+  FlaskConical,
+  Lock,
+  Package,
+  Pickaxe,
+  RotateCcw,
+  ShoppingBag,
+} from "lucide-react";
 import { motion } from "motion/react";
 import {
   RARITIES,
@@ -18,7 +27,119 @@ const RARITY_EMOJIS: Record<string, string> = {
   divine: "✨",
   crazy: "🌈",
   googleplex: "🌌",
+  impossible: "🏳️",
 };
+
+const FEATURES = [
+  {
+    icon: "⛏️",
+    lucide: <Pickaxe className="w-5 h-5" />,
+    title: "3D Excavation",
+    desc: "Dig in a fully 3D earth terrain with particle effects",
+    tab: "dig",
+    accent: "#7c3aed",
+    glow: "rgba(124,58,237,0.35)",
+  },
+  {
+    icon: "🏠",
+    lucide: <Package className="w-5 h-5" />,
+    title: "Your Base",
+    desc: "View and manage your meteorite collection at home base",
+    tab: "inventory",
+    accent: "#0ea5e9",
+    glow: "rgba(14,165,233,0.35)",
+  },
+  {
+    icon: "🛒",
+    lucide: <ShoppingBag className="w-5 h-5" />,
+    title: "Sell Shop",
+    desc: "Sell your meteorites for credits",
+    tab: "shop",
+    accent: "#eab308",
+    glow: "rgba(234,179,8,0.35)",
+  },
+  {
+    icon: "⚗️",
+    lucide: <FlaskConical className="w-5 h-5" />,
+    title: "Fuse Machine",
+    desc: "Combine 3 meteorites to upgrade to the next rarity",
+    tab: "fuse",
+    accent: "#f97316",
+    glow: "rgba(249,115,22,0.35)",
+  },
+  {
+    icon: "🪙",
+    lucide: <Coins className="w-5 h-5" />,
+    title: "Coins Machine",
+    desc: "Exchange meteorites for Coins at premium rates",
+    tab: "coins",
+    accent: "#10b981",
+    glow: "rgba(16,185,129,0.35)",
+  },
+  {
+    icon: "🔄",
+    lucide: <RotateCcw className="w-5 h-5" />,
+    title: "Rebirth System",
+    desc: "Reset for permanent multiplier and base size upgrades",
+    tab: "rebirth",
+    accent: "#ec4899",
+    glow: "rgba(236,72,153,0.35)",
+  },
+  {
+    icon: "🔐",
+    lucide: <Lock className="w-5 h-5" />,
+    title: "Code Panel",
+    desc: "Enter a secret code to unlock rewards and manage the game",
+    tab: "admin",
+    accent: "#64748b",
+    glow: "rgba(100,116,139,0.35)",
+  },
+] as const;
+
+const QUICK_ACTIONS = [
+  {
+    icon: <Pickaxe className="w-5 h-5" />,
+    label: "Dig",
+    tab: "dig",
+    emoji: "⛏️",
+    color: "#7c3aed",
+  },
+  {
+    icon: <Package className="w-5 h-5" />,
+    label: "Base",
+    tab: "inventory",
+    emoji: "🏠",
+    color: "#0ea5e9",
+  },
+  {
+    icon: <ShoppingBag className="w-5 h-5" />,
+    label: "Shop",
+    tab: "shop",
+    emoji: "🛒",
+    color: "#eab308",
+  },
+  {
+    icon: <FlaskConical className="w-5 h-5" />,
+    label: "Fuse",
+    tab: "fuse",
+    emoji: "⚗️",
+    color: "#f97316",
+  },
+  {
+    icon: <Coins className="w-5 h-5" />,
+    label: "Coins",
+    tab: "coins",
+    emoji: "🪙",
+    color: "#10b981",
+  },
+  {
+    icon: <RotateCcw className="w-5 h-5" />,
+    label: "Rebirth",
+    tab: "rebirth",
+    emoji: "🔄",
+    color: "#ec4899",
+  },
+] as const;
 
 export default function IndexPage({
   onNavigate,
@@ -64,7 +185,7 @@ export default function IndexPage({
             WebkitTextFillColor: "transparent",
           }}
         >
-          Meteorite Digger
+          Dig a Meteorite
         </motion.h1>
 
         <motion.p
@@ -84,6 +205,7 @@ export default function IndexPage({
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => onNavigate("dig")}
+          data-ocid="index.dig.primary_button"
           className="mt-6 px-8 py-4 rounded-full font-display font-black text-lg tracking-wide text-white"
           style={{
             background: "linear-gradient(135deg, #7c3aed, #4f46e5, #2563eb)",
@@ -104,9 +226,9 @@ export default function IndexPage({
             color: "#8b5cf6",
           },
           {
-            label: "Credits",
+            label: "Coins",
             value: `${formatNum(credits)} ✦`,
-            icon: "💰",
+            icon: "🪙",
             color: "#eab308",
           },
           {
@@ -147,6 +269,110 @@ export default function IndexPage({
         ))}
       </div>
 
+      {/* Quick Actions */}
+      <div className="px-4 mb-6">
+        <h2 className="text-lg font-display font-bold mb-3">Quick Actions</h2>
+        <div className="grid grid-cols-6 gap-2">
+          {QUICK_ACTIONS.map((action, i) => (
+            <motion.button
+              key={action.tab}
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.05 + i * 0.05 }}
+              whileHover={{ scale: 1.1, y: -2 }}
+              whileTap={{ scale: 0.92 }}
+              onClick={() => onNavigate(action.tab)}
+              data-ocid={`index.${action.tab}.button`}
+              className="flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all"
+              style={{
+                backgroundColor: `${action.color}15`,
+                borderColor: `${action.color}40`,
+              }}
+            >
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center"
+                style={{
+                  backgroundColor: `${action.color}25`,
+                  color: action.color,
+                  boxShadow: `0 0 10px ${action.color}40`,
+                }}
+              >
+                {action.icon}
+              </div>
+              <span
+                className="text-[10px] font-bold font-mono uppercase tracking-wide"
+                style={{ color: action.color }}
+              >
+                {action.label}
+              </span>
+            </motion.button>
+          ))}
+        </div>
+      </div>
+
+      {/* All Features */}
+      <div className="px-4 mb-6">
+        <h2 className="text-lg font-display font-bold mb-3">All Features</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {FEATURES.map((feat, i) => (
+            <motion.button
+              key={feat.title}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 + i * 0.06 }}
+              whileHover={{ scale: 1.02, y: -2 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => onNavigate(feat.tab)}
+              data-ocid={`index.${feat.tab}.card`}
+              className="flex items-start gap-3 p-4 rounded-xl border text-left transition-all group"
+              style={{
+                backgroundColor: `${feat.accent}0d`,
+                borderColor: `${feat.accent}30`,
+              }}
+              onMouseEnter={(e) => {
+                const el = e.currentTarget;
+                el.style.borderColor = `${feat.accent}70`;
+                el.style.boxShadow = `0 4px 20px ${feat.glow}`;
+              }}
+              onMouseLeave={(e) => {
+                const el = e.currentTarget;
+                el.style.borderColor = `${feat.accent}30`;
+                el.style.boxShadow = "none";
+              }}
+            >
+              {/* Icon circle */}
+              <div
+                className="flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center text-xl"
+                style={{
+                  backgroundColor: `${feat.accent}20`,
+                  boxShadow: `0 0 12px ${feat.glow}`,
+                }}
+              >
+                {feat.icon}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div
+                  className="font-bold text-sm mb-0.5 font-display"
+                  style={{ color: feat.accent }}
+                >
+                  {feat.title}
+                </div>
+                <div className="text-xs text-muted-foreground leading-relaxed">
+                  {feat.desc}
+                </div>
+              </div>
+              {/* Arrow indicator */}
+              <div
+                className="flex-shrink-0 self-center opacity-0 group-hover:opacity-100 transition-opacity text-sm"
+                style={{ color: feat.accent }}
+              >
+                →
+              </div>
+            </motion.button>
+          ))}
+        </div>
+      </div>
+
       {/* Rarity tiers */}
       <div className="px-4 mb-6">
         <h2 className="text-lg font-display font-bold mb-3">Rarity Tiers</h2>
@@ -180,64 +406,6 @@ export default function IndexPage({
               </motion.div>
             );
           })}
-        </div>
-      </div>
-
-      {/* Feature highlights */}
-      <div className="px-4 mb-6">
-        <h2 className="text-lg font-display font-bold mb-3">Features</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {[
-            {
-              icon: "⛏️",
-              title: "3D Excavation",
-              desc: "Dig in a fully 3D earth terrain with particle effects",
-              tab: "dig",
-            },
-            {
-              icon: "⚗️",
-              title: "Fuse Machine",
-              desc: "Combine 3 meteorites to upgrade to the next rarity",
-              tab: "fuse",
-            },
-            {
-              icon: "💳",
-              title: "Credits Machine",
-              desc: "Exchange meteorites for Caffeine Credits at premium rates",
-              tab: "credits",
-            },
-            {
-              icon: "🔄",
-              title: "Rebirth System",
-              desc: "Reset for permanent multiplier and base size upgrades",
-              tab: "rebirth",
-            },
-          ].map((feat, i) => (
-            <motion.button
-              key={feat.title}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 + i * 0.05 }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => onNavigate(feat.tab)}
-              className="flex items-start gap-3 p-4 rounded-xl border text-left transition-all"
-              style={{
-                backgroundColor: "oklch(var(--card))",
-                borderColor: "oklch(var(--border))",
-              }}
-            >
-              <span className="text-2xl">{feat.icon}</span>
-              <div>
-                <div className="font-bold text-sm text-foreground">
-                  {feat.title}
-                </div>
-                <div className="text-xs text-muted-foreground mt-0.5">
-                  {feat.desc}
-                </div>
-              </div>
-            </motion.button>
-          ))}
         </div>
       </div>
 

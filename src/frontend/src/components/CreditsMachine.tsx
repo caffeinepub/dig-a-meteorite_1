@@ -33,7 +33,7 @@ function ExchangeRow({ rarity }: { rarity: Rarity }) {
     if (earned > 0) {
       setJustEarned(earned);
       toast.success(
-        `Exchanged ${actualQty}× ${RARITY_LABELS[rarity]} for ${earned.toLocaleString()} Caffeine Credits ✦`,
+        `Exchanged ${actualQty}× ${RARITY_LABELS[rarity]} for ${earned.toLocaleString()} Coins ✦`,
       );
       setTimeout(() => setJustEarned(null), 2000);
       setQty(1);
@@ -212,14 +212,14 @@ export default function CreditsMachine() {
             <Coins className="w-7 h-7 text-yellow-400" />
           </motion.div>
           <h2 className="text-xl font-display font-black text-yellow-400">
-            Caffeine Credits Machine
+            Coins Machine
           </h2>
           <Sparkles className="w-5 h-5 text-yellow-300" />
         </div>
 
         <p className="text-sm text-muted-foreground">
           Trade your meteorites for{" "}
-          <span className="text-yellow-400 font-bold">Caffeine Credits</span>
+          <span className="text-yellow-400 font-bold">Coins</span>
         </p>
         <p className="text-xs text-green-400 font-mono mt-1">
           ★ Better rates than the Sell Shop ★
@@ -228,7 +228,7 @@ export default function CreditsMachine() {
         <div className="mt-3 bg-card/50 rounded-xl px-4 py-2 inline-flex items-center gap-2">
           <Coins className="w-4 h-4 text-yellow-400" />
           <span className="text-lg font-bold font-mono text-yellow-400">
-            {formatCredits(credits)} Caffeine Credits
+            {formatCredits(credits)} Coins
           </span>
         </div>
       </motion.div>

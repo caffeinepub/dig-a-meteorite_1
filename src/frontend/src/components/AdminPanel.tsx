@@ -1,4 +1,12 @@
-import { Coins, Lock, Plus, RotateCcw, Terminal, Zap } from "lucide-react";
+import {
+  Coins,
+  Lock,
+  Plus,
+  RotateCcw,
+  Shield,
+  Terminal,
+  Zap,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -11,6 +19,7 @@ import {
 
 const ADMIN_CODE = "9999";
 const CELESTIAL_CODE = "3752";
+const IMPOSSIBLE_CODE = "4637";
 
 export default function AdminPanel() {
   const [code, setCode] = useState("");
@@ -20,6 +29,7 @@ export default function AdminPanel() {
   const [multiplierInput, setMultiplierInput] = useState("");
   const [meteorRarity, setMeteorRarity] = useState<Rarity>("legendary");
   const [meteorQty, setMeteorQty] = useState("10");
+  const [guardName, setGuardName] = useState("Guard");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -29,10 +39,13 @@ export default function AdminPanel() {
     totalFound,
     baseSize,
     inventory,
+    securityGuards,
     adminReset,
     adminSetCredits,
     adminSetMultiplier,
     adminAddMeteors,
+    spawnGuard,
+    removeGuard,
   } = useGameStore();
 
   const handleCodeSubmit = () => {
@@ -44,6 +57,12 @@ export default function AdminPanel() {
       adminAddMeteors("celestial", 1);
       setCode("");
       toast.success("✨ You received 1 FREE Celestial meteorite!", {
+        duration: 3500,
+      });
+    } else if (code === IMPOSSIBLE_CODE) {
+      adminAddMeteors("impossible", 1);
+      setCode("");
+      toast.success("🌟 You received 1 FREE Impossible meteorite!", {
         duration: 3500,
       });
     } else {
@@ -98,7 +117,7 @@ export default function AdminPanel() {
             <div className="w-3 h-3 rounded-full bg-yellow-500" />
             <div className="w-3 h-3 rounded-full bg-green-500" />
             <span className="text-xs text-muted-foreground font-mono ml-2">
-              admin_access.exe
+              code_panel.exe
             </span>
           </div>
 
@@ -113,7 +132,7 @@ export default function AdminPanel() {
             <div className="flex items-center gap-3">
               <Lock className="w-5 h-5 text-green-400" />
               <span className="font-mono text-green-400 text-sm terminal-cursor">
-                ENTER ACCESS CODE
+                ENTER CODE
               </span>
             </div>
 
@@ -251,7 +270,7 @@ export default function AdminPanel() {
           ── System Status ──
         </div>
         {[
-          { label: "Credits", value: credits.toLocaleString() },
+          { label: "Coins", value: credits.toLocaleString() },
           { label: "Multiplier", value: `×${multiplier}` },
           { label: "Base Size", value: baseSize },
           { label: "Rebirths", value: rebirthCount },
@@ -321,9 +340,7 @@ export default function AdminPanel() {
         >
           <div className="flex items-center gap-2 mb-2">
             <Coins className="w-4 h-4 text-yellow-400" />
-            <span className="text-sm font-mono text-yellow-400">
-              Set Credits
-            </span>
+            <span className="text-sm font-mono text-yellow-400">Set Coins</span>
           </div>
           <div className="flex gap-2">
             <input
@@ -464,6 +481,95 @@ export default function AdminPanel() {
                 ×{v}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Security Guards */}
+        <div
+          className="rounded-xl p-4"
+          style={{
+            backgroundColor: "rgba(14,165,233,0.05)",
+            border: "1px solid rgba(14,165,233,0.2)",
+          }}
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <Shield className="w-4 h-4 text-sky-400" />
+            <span className="text-sm font-mono text-sky-400">
+              Security Guards
+            </span>
+            <span className="text-xs font-mono text-sky-600 ml-auto">
+              {securityGuards.length} deployed
+            </span>
+          </div>
+
+          {/* Guard list */}
+          {securityGuards.length > 0 ? (
+            <div className="flex flex-col gap-1 mb-3 max-h-32 overflow-y-auto">
+              {securityGuards.map((guard) => (
+                <div
+                  key={guard.id}
+                  className="flex items-center justify-between px-3 py-1.5 rounded-lg"
+                  style={{ backgroundColor: "rgba(14,165,233,0.08)" }}
+                >
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-3 h-3 text-sky-400" />
+                    <span className="text-xs font-mono text-sky-300">
+                      {guard.name}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeGuard(guard.id)}
+                    className="text-xs font-mono font-bold text-red-400 hover:text-red-300 transition-colors px-2 py-0.5 rounded"
+                    style={{
+                      backgroundColor: "rgba(239,68,68,0.1)",
+                      border: "1px solid rgba(239,68,68,0.3)",
+                    }}
+                  >
+                    DISMISS
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground font-mono mb-3">
+              No guards deployed.
+            </p>
+          )}
+
+          {/* Spawn form */}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={guardName}
+              onChange={(e) => setGuardName(e.target.value)}
+              placeholder="Guard name..."
+              className="flex-1 bg-transparent border border-border rounded-lg px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-sky-400/50"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const name = guardName.trim() || "Guard";
+                  spawnGuard(name);
+                  setGuardName("Guard");
+                  toast.success("Security guard deployed!");
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const name = guardName.trim() || "Guard";
+                spawnGuard(name);
+                setGuardName("Guard");
+                toast.success("Security guard deployed!");
+              }}
+              className="px-4 py-2 rounded-lg font-mono font-bold text-sm text-sky-400 transition-all"
+              style={{
+                backgroundColor: "rgba(14,165,233,0.2)",
+                border: "1px solid rgba(14,165,233,0.4)",
+              }}
+            >
+              SPAWN
+            </button>
           </div>
         </div>
       </div>
