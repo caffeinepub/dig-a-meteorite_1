@@ -113,6 +113,7 @@ interface GameState {
   nextDigRarity: Rarity | null; // admin forced next dig rarity
   teleportTarget: string | null; // building id to teleport to
   securityGuards: number; // count of spawned guards
+  isPublic: boolean; // public or private profile/museum visibility
 
   // Actions
   digMeteor: () => Rarity;
@@ -137,6 +138,7 @@ interface GameState {
   adminSellAll: () => void;
   adminFuseAll: () => void;
   clearLastDig: () => void;
+  setPublic: (value: boolean) => void;
 }
 
 function weightedRandom(): Rarity {
@@ -173,6 +175,7 @@ export const useGameStore = create<GameState>()(
       nextDigRarity: null,
       teleportTarget: null,
       securityGuards: 0,
+      isPublic: true,
 
       digMeteor: () => {
         const { multiplier, inventory, totalFound, godMode, nextDigRarity } =
@@ -413,6 +416,10 @@ export const useGameStore = create<GameState>()(
 
       clearLastDig: () => {
         set({ lastDigResult: null });
+      },
+
+      setPublic: (value: boolean) => {
+        set({ isPublic: value });
       },
     }),
     {

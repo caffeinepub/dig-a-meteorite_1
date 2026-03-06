@@ -1,5 +1,7 @@
 import {
   Coins,
+  Eye,
+  EyeOff,
   FlaskConical,
   Lock,
   Package,
@@ -145,7 +147,8 @@ export default function IndexPage({
 }: {
   onNavigate: (tab: string) => void;
 }) {
-  const { totalFound, rebirthCount, credits, multiplier } = useGameStore();
+  const { totalFound, rebirthCount, credits, multiplier, isPublic, setPublic } =
+    useGameStore();
 
   const formatNum = (n: number) => {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -266,6 +269,104 @@ export default function IndexPage({
             </div>
           </motion.div>
         ))}
+      </div>
+
+      {/* Public / Private Toggle */}
+      <div className="px-4 mb-6">
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="rounded-xl border p-4 flex items-center justify-between gap-4"
+          style={{
+            backgroundColor: isPublic
+              ? "rgba(16,185,129,0.08)"
+              : "rgba(100,116,139,0.08)",
+            borderColor: isPublic
+              ? "rgba(16,185,129,0.35)"
+              : "rgba(100,116,139,0.35)",
+            transition: "background-color 0.3s, border-color 0.3s",
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{
+                backgroundColor: isPublic
+                  ? "rgba(16,185,129,0.2)"
+                  : "rgba(100,116,139,0.2)",
+                color: isPublic ? "#10b981" : "#94a3b8",
+                transition: "all 0.3s",
+              }}
+            >
+              {isPublic ? (
+                <Eye className="w-5 h-5" />
+              ) : (
+                <EyeOff className="w-5 h-5" />
+              )}
+            </div>
+            <div>
+              <div
+                className="font-bold text-sm font-display"
+                style={{
+                  color: isPublic ? "#10b981" : "#94a3b8",
+                  transition: "color 0.3s",
+                }}
+              >
+                {isPublic ? "Public Profile" : "Private Profile"}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {isPublic
+                  ? "Your museum and stats are visible to others"
+                  : "Your museum and stats are hidden from others"}
+              </div>
+            </div>
+          </div>
+
+          {/* Toggle buttons */}
+          <div
+            className="flex rounded-lg overflow-hidden border flex-shrink-0"
+            style={{
+              borderColor: isPublic
+                ? "rgba(16,185,129,0.4)"
+                : "rgba(100,116,139,0.4)",
+            }}
+          >
+            <button
+              type="button"
+              data-ocid="profile.public.toggle"
+              onClick={() => setPublic(true)}
+              className="px-3 py-1.5 text-xs font-bold font-mono uppercase tracking-wide transition-all flex items-center gap-1"
+              style={{
+                backgroundColor: isPublic
+                  ? "rgba(16,185,129,0.35)"
+                  : "transparent",
+                color: isPublic ? "#10b981" : "#64748b",
+              }}
+            >
+              <Eye className="w-3 h-3" />
+              Public
+            </button>
+            <button
+              type="button"
+              data-ocid="profile.private.toggle"
+              onClick={() => setPublic(false)}
+              className="px-3 py-1.5 text-xs font-bold font-mono uppercase tracking-wide transition-all flex items-center gap-1 border-l"
+              style={{
+                backgroundColor: !isPublic
+                  ? "rgba(100,116,139,0.35)"
+                  : "transparent",
+                color: !isPublic ? "#94a3b8" : "#64748b",
+                borderColor: isPublic
+                  ? "rgba(16,185,129,0.4)"
+                  : "rgba(100,116,139,0.4)",
+              }}
+            >
+              <EyeOff className="w-3 h-3" />
+              Private
+            </button>
+          </div>
+        </motion.div>
       </div>
 
       {/* Quick Actions */}

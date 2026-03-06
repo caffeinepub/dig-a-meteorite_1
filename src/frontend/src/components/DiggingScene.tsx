@@ -1977,7 +1977,7 @@ export default function DiggingScene() {
                   times: [0, 0.15, 0.35, 1],
                   ease: "easeOut",
                 }}
-                className="pointer-events-none absolute inset-0 flex items-center justify-center"
+                className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-4"
                 style={{ zIndex: 61 }}
               >
                 <span
@@ -1996,6 +1996,98 @@ export default function DiggingScene() {
                 >
                   YOU FELL HAHAHAHA
                 </span>
+
+                {/* Laughing character */}
+                <motion.div
+                  animate={{ rotate: [-8, 8, -8], scale: [1, 1.12, 1] }}
+                  transition={{
+                    duration: 0.35,
+                    repeat: Number.POSITIVE_INFINITY,
+                    ease: "easeInOut",
+                  }}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 4,
+                    filter: "drop-shadow(0 0 16px rgba(255,50,50,0.8))",
+                  }}
+                >
+                  {/* Head */}
+                  <div
+                    style={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: "50%",
+                      background: "linear-gradient(135deg, #f9c74f, #f3722c)",
+                      border: "3px solid #000",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 32,
+                      position: "relative",
+                      boxShadow: "0 4px 16px rgba(0,0,0,0.6)",
+                    }}
+                  >
+                    😂
+                  </div>
+                  {/* Body */}
+                  <div
+                    style={{
+                      width: 44,
+                      height: 40,
+                      borderRadius: "12px 12px 6px 6px",
+                      background: "linear-gradient(180deg, #ef233c, #d62828)",
+                      border: "3px solid #000",
+                      position: "relative",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+                    }}
+                  />
+                  {/* Legs */}
+                  <div style={{ display: "flex", gap: 6, marginTop: -6 }}>
+                    <div
+                      style={{
+                        width: 16,
+                        height: 24,
+                        borderRadius: "0 0 8px 8px",
+                        background: "#1a1a2e",
+                        border: "2px solid #000",
+                      }}
+                    />
+                    <div
+                      style={{
+                        width: 16,
+                        height: 24,
+                        borderRadius: "0 0 8px 8px",
+                        background: "#1a1a2e",
+                        border: "2px solid #000",
+                      }}
+                    />
+                  </div>
+                  {/* Speech bubble */}
+                  <motion.div
+                    animate={{ scale: [1, 1.08, 1], y: [0, -3, 0] }}
+                    transition={{
+                      duration: 0.4,
+                      repeat: Number.POSITIVE_INFINITY,
+                    }}
+                    style={{
+                      marginTop: -8,
+                      background: "white",
+                      color: "#cc0000",
+                      fontFamily: "monospace",
+                      fontWeight: 900,
+                      fontSize: 13,
+                      padding: "4px 10px",
+                      borderRadius: 12,
+                      border: "2px solid #cc0000",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    HAHAHAHAHA! 😂
+                  </motion.div>
+                </motion.div>
               </motion.div>
             </>
           )}
