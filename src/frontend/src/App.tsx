@@ -3,8 +3,8 @@ import {
   Coins,
   FlaskConical,
   Home,
+  Landmark,
   Lock,
-  Package,
   Pickaxe,
   RotateCcw,
   ShoppingBag,
@@ -27,7 +27,7 @@ type Tab =
   | "inventory"
   | "shop"
   | "fuse"
-  | "coins"
+  | "credits"
   | "rebirth"
   | "admin";
 
@@ -51,8 +51,8 @@ const TABS: {
   },
   {
     id: "inventory",
-    label: "Items",
-    icon: <Package className="w-4 h-4" />,
+    label: "Museum",
+    icon: <Landmark className="w-4 h-4" />,
     ocid: "nav.inventory.tab",
   },
   {
@@ -68,10 +68,10 @@ const TABS: {
     ocid: "nav.fuse.tab",
   },
   {
-    id: "coins",
-    label: "Coins",
+    id: "credits",
+    label: "Credits",
     icon: <Coins className="w-4 h-4" />,
-    ocid: "nav.coins.tab",
+    ocid: "nav.credits.tab",
   },
   {
     id: "rebirth",
@@ -81,7 +81,7 @@ const TABS: {
   },
   {
     id: "admin",
-    label: "Code Panel",
+    label: "Admin",
     icon: <Lock className="w-4 h-4" />,
     ocid: "nav.admin.tab",
   },
@@ -99,7 +99,7 @@ function renderTab(tab: Tab, onNavigate: (t: string) => void) {
       return <SellShop />;
     case "fuse":
       return <FuseMachine />;
-    case "coins":
+    case "credits":
       return <CreditsMachine />;
     case "rebirth":
       return <RebirthPanel />;
@@ -164,7 +164,7 @@ export default function App() {
         </nav>
 
         <div className="flex gap-4 text-xs font-mono">
-          <span className="text-yellow-400">🪙 {formatNum(credits)}</span>
+          <span className="text-yellow-400">{formatNum(credits)} ✦</span>
           <span className="text-cyan-400">{formatNum(totalFound)} found</span>
         </div>
       </div>
@@ -178,7 +178,7 @@ export default function App() {
           </span>
         </div>
         <div className="flex gap-3 text-xs font-mono">
-          <span className="text-yellow-400">🪙 {formatNum(credits)}</span>
+          <span className="text-yellow-400">{formatNum(credits)} ✦</span>
           <span className="text-cyan-400">{formatNum(totalFound)}</span>
         </div>
       </div>

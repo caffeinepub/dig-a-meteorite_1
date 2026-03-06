@@ -6,7 +6,6 @@ import {
   TrendingUp,
   Zap,
 } from "lucide-react";
-import { Building2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -21,7 +20,6 @@ export default function RebirthPanel() {
     rebirth,
     inventory,
     credits,
-    museumSlots,
   } = useGameStore();
   const [confirming, setConfirming] = useState(false);
   const [justRebirthed, setJustRebirthed] = useState(false);
@@ -195,25 +193,17 @@ export default function RebirthPanel() {
         <h3 className="text-sm font-bold text-foreground mb-3">
           Next Rebirth Rewards
         </h3>
-        <div className="flex flex-col gap-2">
-          <div className="flex gap-4">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-purple-400" />
-              <span className="text-sm text-foreground">
-                Multiplier: ×{multiplier} → ×{multiplier + 1}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Maximize2 className="w-4 h-4 text-cyan-400" />
-              <span className="text-sm text-foreground">
-                Base: {baseSize} → {baseSize + 1}
-              </span>
-            </div>
+        <div className="flex gap-4">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-purple-400" />
+            <span className="text-sm text-foreground">
+              Multiplier: ×{multiplier} → ×{multiplier + 1}
+            </span>
           </div>
           <div className="flex items-center gap-2">
-            <Building2 className="w-4 h-4 text-amber-400" />
+            <Maximize2 className="w-4 h-4 text-cyan-400" />
             <span className="text-sm text-foreground">
-              Museum: {museumSlots.length} → {museumSlots.length + 2} slots
+              Base: {baseSize} → {baseSize + 1}
             </span>
           </div>
         </div>

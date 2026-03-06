@@ -213,6 +213,16 @@
   background: oklch(0.4 0.08 270);
 }
 
+/* Museum pedestal glow pulse */
+@keyframes pedestal-glow {
+  0%, 100% { box-shadow: 0 0 20px 2px var(--pedestal-color, #c9a84c44), inset 0 0 20px transparent; }
+  50% { box-shadow: 0 0 35px 6px var(--pedestal-color, #c9a84c66), inset 0 0 30px var(--pedestal-color, #c9a84c11); }
+}
+
+.museum-pedestal-active {
+  animation: pedestal-glow 3s ease-in-out infinite;
+}
+
 /* Terminal cursor */
 @keyframes blink {
   0%, 100% { opacity: 1; }

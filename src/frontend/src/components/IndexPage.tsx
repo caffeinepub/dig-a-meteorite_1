@@ -27,7 +27,6 @@ const RARITY_EMOJIS: Record<string, string> = {
   divine: "✨",
   crazy: "🌈",
   googleplex: "🌌",
-  impossible: "🏳️",
 };
 
 const FEATURES = [
@@ -68,11 +67,11 @@ const FEATURES = [
     glow: "rgba(249,115,22,0.35)",
   },
   {
-    icon: "🪙",
+    icon: "💳",
     lucide: <Coins className="w-5 h-5" />,
-    title: "Coins Machine",
-    desc: "Exchange meteorites for Coins at premium rates",
-    tab: "coins",
+    title: "Credits Machine",
+    desc: "Exchange meteorites for Caffeine Credits at premium rates",
+    tab: "credits",
     accent: "#10b981",
     glow: "rgba(16,185,129,0.35)",
   },
@@ -88,8 +87,8 @@ const FEATURES = [
   {
     icon: "🔐",
     lucide: <Lock className="w-5 h-5" />,
-    title: "Code Panel",
-    desc: "Enter a secret code to unlock rewards and manage the game",
+    title: "Admin Panel",
+    desc: "Secret admin access — enter code 9999 to unlock",
     tab: "admin",
     accent: "#64748b",
     glow: "rgba(100,116,139,0.35)",
@@ -127,9 +126,9 @@ const QUICK_ACTIONS = [
   },
   {
     icon: <Coins className="w-5 h-5" />,
-    label: "Coins",
-    tab: "coins",
-    emoji: "🪙",
+    label: "Credits",
+    tab: "credits",
+    emoji: "💳",
     color: "#10b981",
   },
   {
@@ -226,9 +225,9 @@ export default function IndexPage({
             color: "#8b5cf6",
           },
           {
-            label: "Coins",
+            label: "Credits",
             value: `${formatNum(credits)} ✦`,
-            icon: "🪙",
+            icon: "💰",
             color: "#eab308",
           },
           {

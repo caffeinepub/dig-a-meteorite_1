@@ -13,7 +13,6 @@ export const RARITIES = [
   "divine",
   "crazy",
   "googleplex",
-  "impossible",
 ] as const;
 
 export type Rarity = (typeof RARITIES)[number];
@@ -30,7 +29,6 @@ export const RARITY_COLORS: Record<Rarity, string> = {
   divine: "#f8fafc",
   crazy: "#ff6bff",
   googleplex: "#ff00ff",
-  impossible: "#ffffff",
 };
 
 export const RARITY_LABELS: Record<Rarity, string> = {
@@ -45,7 +43,6 @@ export const RARITY_LABELS: Record<Rarity, string> = {
   divine: "Divine",
   crazy: "Crazy",
   googleplex: "Googleplex",
-  impossible: "Impossible",
 };
 
 export const DIG_WEIGHTS: Record<Rarity, number> = {
@@ -60,7 +57,6 @@ export const DIG_WEIGHTS: Record<Rarity, number> = {
   divine: 200,
   crazy: 90,
   googleplex: 10,
-  impossible: 1,
 };
 
 export const SELL_PRICES: Record<Rarity, number> = {
@@ -75,7 +71,6 @@ export const SELL_PRICES: Record<Rarity, number> = {
   divine: 80000,
   crazy: 300000,
   googleplex: 9999999,
-  impossible: 99999999,
 };
 
 export const EXCHANGE_RATES: Record<Rarity, number> = {
@@ -90,7 +85,6 @@ export const EXCHANGE_RATES: Record<Rarity, number> = {
   divine: 120000,
   crazy: 450000,
   googleplex: 15000000,
-  impossible: 150000000,
 };
 
 export const SECRET_ROOM_RARITIES: Rarity[] = [
@@ -100,21 +94,7 @@ export const SECRET_ROOM_RARITIES: Rarity[] = [
   "googleplex",
 ];
 
-// Museum display slot: which meteorite rarity is placed there (null = empty)
-export type MuseumSlot = { rarity: Rarity | null };
-
-// Security guard definition
-export interface SecurityGuard {
-  id: string;
-  name: string;
-  position: number; // 0-based index in the museum
-}
-
 type Inventory = Record<string, number>;
-
-// Base museum slots per rebirth level
-const BASE_MUSEUM_SLOTS = 3;
-const SLOTS_PER_REBIRTH = 2;
 
 interface GameState {
   inventory: Inventory;
@@ -126,10 +106,6 @@ interface GameState {
   lastDigResult: Rarity | null;
   lastDigTime: number;
 
-  // Museum
-  museumSlots: MuseumSlot[];
-  securityGuards: SecurityGuard[];
-
   // Actions
   digMeteor: () => Rarity;
   sellMeteor: (rarity: string, qty: number) => boolean;
@@ -140,15 +116,8 @@ interface GameState {
   adminSetCredits: (amount: number) => void;
   adminSetMultiplier: (amount: number) => void;
   adminAddMeteors: (rarity: string, qty: number) => void;
+  adminSetRebirth: (count: number) => void;
   clearLastDig: () => void;
-
-  // Museum actions
-  placeInMuseum: (slotIndex: number, rarity: Rarity) => boolean;
-  removeFromMuseum: (slotIndex: number) => void;
-
-  // Security guard actions
-  spawnGuard: (name: string) => void;
-  removeGuard: (id: string) => void;
 }
 
 function weightedRandom(): Rarity {
@@ -166,10 +135,6 @@ const defaultInventory: Inventory = Object.fromEntries(
   RARITIES.map((r) => [r, 0]),
 );
 
-function makeMuseumSlots(count: number): MuseumSlot[] {
-  return Array.from({ length: count }, () => ({ rarity: null }));
-}
-
 export const useGameStore = create<GameState>()(
   persist(
     (set, get) => ({
@@ -181,8 +146,6 @@ export const useGameStore = create<GameState>()(
       baseSize: 1,
       lastDigResult: null,
       lastDigTime: 0,
-      museumSlots: makeMuseumSlots(BASE_MUSEUM_SLOTS),
-      securityGuards: [],
 
       digMeteor: () => {
         const { multiplier, inventory, totalFound } = get();
@@ -257,37 +220,18 @@ export const useGameStore = create<GameState>()(
       },
 
       rebirth: () => {
-        const {
-          totalFound,
-          rebirthCount,
-          multiplier,
-          baseSize,
-          museumSlots,
-          securityGuards,
-        } = get();
+        const { totalFound, rebirthCount, multiplier, baseSize } = get();
         const required = 50 * (rebirthCount + 1);
         if (totalFound < required) return false;
-
-        const newRebirthCount = rebirthCount + 1;
-        const newSlotCount =
-          BASE_MUSEUM_SLOTS + newRebirthCount * SLOTS_PER_REBIRTH;
-
-        // Expand museum slots, preserving existing placed meteorites
-        const expandedSlots: MuseumSlot[] = [...museumSlots];
-        while (expandedSlots.length < newSlotCount) {
-          expandedSlots.push({ rarity: null });
-        }
 
         set({
           inventory: { ...defaultInventory },
           credits: 0,
-          rebirthCount: newRebirthCount,
+          rebirthCount: rebirthCount + 1,
           multiplier: multiplier + 1,
           baseSize: baseSize + 1,
           totalFound: 0,
           lastDigResult: null,
-          museumSlots: expandedSlots,
-          securityGuards,
         });
         return true;
       },
@@ -301,8 +245,6 @@ export const useGameStore = create<GameState>()(
           totalFound: 0,
           baseSize: 1,
           lastDigResult: null,
-          museumSlots: makeMuseumSlots(BASE_MUSEUM_SLOTS),
-          securityGuards: [],
         });
       },
 
@@ -325,60 +267,17 @@ export const useGameStore = create<GameState>()(
         });
       },
 
+      adminSetRebirth: (count: number) => {
+        const safeCount = Math.max(0, count);
+        set({
+          rebirthCount: safeCount,
+          baseSize: safeCount + 1,
+          multiplier: safeCount + 1,
+        });
+      },
+
       clearLastDig: () => {
         set({ lastDigResult: null });
-      },
-
-      placeInMuseum: (slotIndex: number, rarity: Rarity) => {
-        const { museumSlots, inventory } = get();
-        const available = inventory[rarity] || 0;
-        if (available < 1) return false;
-        if (slotIndex < 0 || slotIndex >= museumSlots.length) return false;
-
-        const newSlots = [...museumSlots];
-        // If slot already has something, return it to inventory
-        const existing = newSlots[slotIndex].rarity;
-        const newInventory = { ...inventory };
-        if (existing) {
-          newInventory[existing] = (newInventory[existing] || 0) + 1;
-        }
-        newSlots[slotIndex] = { rarity };
-        newInventory[rarity] = (newInventory[rarity] || 0) - 1;
-
-        set({ museumSlots: newSlots, inventory: newInventory });
-        return true;
-      },
-
-      removeFromMuseum: (slotIndex: number) => {
-        const { museumSlots, inventory } = get();
-        if (slotIndex < 0 || slotIndex >= museumSlots.length) return;
-        const slot = museumSlots[slotIndex];
-        if (!slot.rarity) return;
-
-        const newSlots = [...museumSlots];
-        const newInventory = { ...inventory };
-        newInventory[slot.rarity] = (newInventory[slot.rarity] || 0) + 1;
-        newSlots[slotIndex] = { rarity: null };
-
-        set({ museumSlots: newSlots, inventory: newInventory });
-      },
-
-      spawnGuard: (name: string) => {
-        const { securityGuards } = get();
-        const id = `guard-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        set({
-          securityGuards: [
-            ...securityGuards,
-            { id, name, position: securityGuards.length },
-          ],
-        });
-      },
-
-      removeGuard: (id: string) => {
-        const { securityGuards } = get();
-        set({
-          securityGuards: securityGuards.filter((g) => g.id !== id),
-        });
       },
     }),
     {

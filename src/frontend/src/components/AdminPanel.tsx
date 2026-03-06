@@ -1,13 +1,14 @@
 import {
   Coins,
+  Crown,
+  FlaskConical,
   Lock,
   Plus,
   RotateCcw,
-  Shield,
   Terminal,
   Zap,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -27,9 +28,9 @@ export default function AdminPanel() {
   const [error, setError] = useState(false);
   const [creditsInput, setCreditsInput] = useState("");
   const [multiplierInput, setMultiplierInput] = useState("");
+  const [rebirthInput, setRebirthInput] = useState("");
   const [meteorRarity, setMeteorRarity] = useState<Rarity>("legendary");
   const [meteorQty, setMeteorQty] = useState("10");
-  const [guardName, setGuardName] = useState("Guard");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -39,13 +40,11 @@ export default function AdminPanel() {
     totalFound,
     baseSize,
     inventory,
-    securityGuards,
     adminReset,
     adminSetCredits,
     adminSetMultiplier,
     adminAddMeteors,
-    spawnGuard,
-    removeGuard,
+    adminSetRebirth,
   } = useGameStore();
 
   const handleCodeSubmit = () => {
@@ -60,11 +59,14 @@ export default function AdminPanel() {
         duration: 3500,
       });
     } else if (code === IMPOSSIBLE_CODE) {
-      adminAddMeteors("impossible", 1);
+      adminAddMeteors("googleplex", 1);
       setCode("");
-      toast.success("🌟 You received 1 FREE Impossible meteorite!", {
-        duration: 3500,
-      });
+      toast.success(
+        "🌌 You received 1 FREE Impossible (Googleplex) meteorite!",
+        {
+          duration: 3500,
+        },
+      );
     } else {
       setError(true);
       setCode("");
@@ -93,11 +95,47 @@ export default function AdminPanel() {
     toast.success(`Multiplier set to ×${val}`);
   };
 
+  const handleSetRebirth = () => {
+    const val = Number.parseInt(rebirthInput);
+    if (Number.isNaN(val) || val < 0) return;
+    adminSetRebirth(val);
+    setRebirthInput("");
+    toast.success(
+      `Rebirth set to ${val} — Multiplier ×${val + 1}, Base Size ${val + 1}`,
+    );
+  };
+
   const handleAddMeteors = () => {
     const qty = Number.parseInt(meteorQty);
     if (Number.isNaN(qty) || qty < 1) return;
     adminAddMeteors(meteorRarity, qty);
     toast.success(`Added ${qty}× ${RARITY_LABELS[meteorRarity]}`);
+  };
+
+  const handleAddAllRarities = () => {
+    const qty = Number.parseInt(meteorQty);
+    if (Number.isNaN(qty) || qty < 1) return;
+    for (const r of RARITIES) {
+      adminAddMeteors(r, qty);
+    }
+    toast.success(`Added ${qty}× of EVERY rarity!`);
+  };
+
+  const handleMaxEverything = () => {
+    adminSetCredits(999_999_999);
+    adminSetMultiplier(999);
+    for (const r of RARITIES) {
+      adminAddMeteors(r, 9999);
+    }
+    adminSetRebirth(50);
+    toast.success("🔥 MAX EVERYTHING activated!", { duration: 3000 });
+  };
+
+  const handle9999All = () => {
+    for (const r of RARITIES) {
+      adminAddMeteors(r, 9999);
+    }
+    toast.success("💥 Added 9999 of EVERY rarity!");
   };
 
   if (!unlocked) {
@@ -161,7 +199,7 @@ export default function AdminPanel() {
                   animate={{ opacity: 1, y: 0 }}
                   className="text-red-400 font-mono text-xs text-center mt-2"
                 >
-                  ACCESS DENIED
+                  INVALID CODE
                 </motion.p>
               )}
             </div>
@@ -202,7 +240,7 @@ export default function AdminPanel() {
                   code.length === 4 ? "#22c55e66" : "oklch(var(--border))",
               }}
             >
-              AUTHENTICATE
+              SUBMIT
             </button>
 
             {/* Numpad */}
@@ -258,6 +296,28 @@ export default function AdminPanel() {
         </button>
       </div>
 
+      {/* ★ MAX EVERYTHING button */}
+      <motion.button
+        type="button"
+        data-ocid="admin.primary_button"
+        onClick={handleMaxEverything}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.97 }}
+        className="w-full py-4 rounded-xl font-mono font-black text-lg uppercase tracking-widest flex items-center justify-center gap-3 transition-all"
+        style={{
+          background:
+            "linear-gradient(135deg, rgba(234,179,8,0.35) 0%, rgba(251,146,60,0.35) 50%, rgba(239,68,68,0.35) 100%)",
+          border: "2px solid rgba(234,179,8,0.6)",
+          color: "#fbbf24",
+          textShadow: "0 0 20px rgba(234,179,8,0.8)",
+          boxShadow: "0 0 30px rgba(234,179,8,0.2)",
+        }}
+      >
+        <Crown className="w-6 h-6" />
+        MAX EVERYTHING
+        <Crown className="w-6 h-6" />
+      </motion.button>
+
       {/* Stats */}
       <div
         className="rounded-xl p-4 font-mono text-sm space-y-1"
@@ -270,7 +330,7 @@ export default function AdminPanel() {
           ── System Status ──
         </div>
         {[
-          { label: "Coins", value: credits.toLocaleString() },
+          { label: "Credits", value: credits.toLocaleString() },
           { label: "Multiplier", value: `×${multiplier}` },
           { label: "Base Size", value: baseSize },
           { label: "Rebirths", value: rebirthCount },
@@ -318,7 +378,7 @@ export default function AdminPanel() {
         {/* Reset */}
         <button
           type="button"
-          data-ocid="admin.reset_button"
+          data-ocid="admin.delete_button"
           onClick={handleReset}
           className="flex items-center gap-2 w-full py-3 px-4 rounded-xl font-mono font-bold text-red-400 transition-all"
           style={{
@@ -340,10 +400,13 @@ export default function AdminPanel() {
         >
           <div className="flex items-center gap-2 mb-2">
             <Coins className="w-4 h-4 text-yellow-400" />
-            <span className="text-sm font-mono text-yellow-400">Set Coins</span>
+            <span className="text-sm font-mono text-yellow-400">
+              Set Credits
+            </span>
           </div>
           <div className="flex gap-2">
             <input
+              data-ocid="admin.input"
               type="number"
               value={creditsInput}
               onChange={(e) => setCreditsInput(e.target.value)}
@@ -353,6 +416,7 @@ export default function AdminPanel() {
             />
             <button
               type="button"
+              data-ocid="admin.save_button"
               onClick={handleSetCredits}
               className="px-4 py-2 rounded-lg font-mono font-bold text-sm text-yellow-400 transition-all"
               style={{
@@ -363,23 +427,26 @@ export default function AdminPanel() {
               SET
             </button>
           </div>
-          <div className="flex gap-2 mt-2">
-            {[1000, 100000, 1000000, 99999999].map((v) => (
+          {/* Quick credit presets: 1K, 100K, 1M, 999M, MAX */}
+          <div className="flex gap-1 mt-2 flex-wrap">
+            {[
+              { label: "1K", val: 1_000 },
+              { label: "100K", val: 100_000 },
+              { label: "1M", val: 1_000_000 },
+              { label: "999M", val: 999_000_000 },
+              { label: "MAX", val: 999_999_999 },
+            ].map(({ label, val }) => (
               <button
                 type="button"
-                key={v}
+                key={label}
                 onClick={() => {
-                  adminSetCredits(v);
-                  toast.success(`Credits set to ${v.toLocaleString()}`);
+                  adminSetCredits(val);
+                  toast.success(`Credits set to ${val.toLocaleString()}`);
                 }}
                 className="flex-1 py-1 rounded text-xs font-mono text-yellow-600 hover:text-yellow-400 transition-colors"
                 style={{ backgroundColor: "rgba(234,179,8,0.08)" }}
               >
-                {v >= 1_000_000
-                  ? `${v / 1_000_000}M`
-                  : v >= 1_000
-                    ? `${v / 1_000}K`
-                    : v}
+                {label}
               </button>
             ))}
           </div>
@@ -421,6 +488,91 @@ export default function AdminPanel() {
               SET
             </button>
           </div>
+          {/* Multiplier quick presets */}
+          <div className="flex gap-2 mt-2">
+            {[
+              { label: "×10", val: 10 },
+              { label: "×100", val: 100 },
+              { label: "×999", val: 999 },
+            ].map(({ label, val }) => (
+              <button
+                type="button"
+                key={label}
+                onClick={() => {
+                  adminSetMultiplier(val);
+                  toast.success(`Multiplier set to ${label}`);
+                }}
+                className="flex-1 py-1 rounded text-xs font-mono text-purple-600 hover:text-purple-400 transition-colors"
+                style={{ backgroundColor: "rgba(139,92,246,0.08)" }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Set Rebirth */}
+        <div
+          className="rounded-xl p-4"
+          style={{
+            backgroundColor: "rgba(20,184,166,0.05)",
+            border: "1px solid rgba(20,184,166,0.2)",
+          }}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <RotateCcw className="w-4 h-4 text-teal-400" />
+            <span className="text-sm font-mono text-teal-400">
+              Set Rebirth Count
+            </span>
+            <span className="ml-auto text-xs font-mono text-teal-600">
+              current: {rebirthCount}
+            </span>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              value={rebirthInput}
+              onChange={(e) => setRebirthInput(e.target.value)}
+              placeholder="Count..."
+              className="flex-1 bg-transparent border border-border rounded-lg px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-teal-400/50"
+              min={0}
+              onKeyDown={(e) => e.key === "Enter" && handleSetRebirth()}
+            />
+            <button
+              type="button"
+              onClick={handleSetRebirth}
+              className="px-4 py-2 rounded-lg font-mono font-bold text-sm text-teal-400 transition-all"
+              style={{
+                backgroundColor: "rgba(20,184,166,0.2)",
+                border: "1px solid rgba(20,184,166,0.4)",
+              }}
+            >
+              SET
+            </button>
+          </div>
+          {/* Quick rebirth presets */}
+          <div className="flex gap-2 mt-2">
+            {[
+              { label: "×5", val: 5 },
+              { label: "×10", val: 10 },
+              { label: "×50", val: 50 },
+            ].map(({ label, val }) => (
+              <button
+                type="button"
+                key={label}
+                onClick={() => {
+                  adminSetRebirth(val);
+                  toast.success(
+                    `Rebirth set to ${val} — Multiplier ×${val + 1}`,
+                  );
+                }}
+                className="flex-1 py-1 rounded text-xs font-mono text-teal-600 hover:text-teal-400 transition-colors"
+                style={{ backgroundColor: "rgba(20,184,166,0.08)" }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Add Meteorites */}
@@ -431,7 +583,7 @@ export default function AdminPanel() {
             border: "1px solid rgba(6,182,212,0.2)",
           }}
         >
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-3">
             <Plus className="w-4 h-4 text-cyan-400" />
             <span className="text-sm font-mono text-cyan-400">
               Add Meteorites
@@ -469,7 +621,8 @@ export default function AdminPanel() {
               ADD
             </button>
           </div>
-          <div className="flex gap-2">
+          {/* Qty quick presets */}
+          <div className="flex gap-2 mb-3">
             {[1, 10, 100, 1000].map((v) => (
               <button
                 type="button"
@@ -482,93 +635,34 @@ export default function AdminPanel() {
               </button>
             ))}
           </div>
-        </div>
-
-        {/* Security Guards */}
-        <div
-          className="rounded-xl p-4"
-          style={{
-            backgroundColor: "rgba(14,165,233,0.05)",
-            border: "1px solid rgba(14,165,233,0.2)",
-          }}
-        >
-          <div className="flex items-center gap-2 mb-3">
-            <Shield className="w-4 h-4 text-sky-400" />
-            <span className="text-sm font-mono text-sky-400">
-              Security Guards
-            </span>
-            <span className="text-xs font-mono text-sky-600 ml-auto">
-              {securityGuards.length} deployed
-            </span>
-          </div>
-
-          {/* Guard list */}
-          {securityGuards.length > 0 ? (
-            <div className="flex flex-col gap-1 mb-3 max-h-32 overflow-y-auto">
-              {securityGuards.map((guard) => (
-                <div
-                  key={guard.id}
-                  className="flex items-center justify-between px-3 py-1.5 rounded-lg"
-                  style={{ backgroundColor: "rgba(14,165,233,0.08)" }}
-                >
-                  <div className="flex items-center gap-2">
-                    <Shield className="w-3 h-3 text-sky-400" />
-                    <span className="text-xs font-mono text-sky-300">
-                      {guard.name}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeGuard(guard.id)}
-                    className="text-xs font-mono font-bold text-red-400 hover:text-red-300 transition-colors px-2 py-0.5 rounded"
-                    style={{
-                      backgroundColor: "rgba(239,68,68,0.1)",
-                      border: "1px solid rgba(239,68,68,0.3)",
-                    }}
-                  >
-                    DISMISS
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground font-mono mb-3">
-              No guards deployed.
-            </p>
-          )}
-
-          {/* Spawn form */}
+          {/* ADD ALL / 9999 ALL */}
           <div className="flex gap-2">
-            <input
-              type="text"
-              value={guardName}
-              onChange={(e) => setGuardName(e.target.value)}
-              placeholder="Guard name..."
-              className="flex-1 bg-transparent border border-border rounded-lg px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-sky-400/50"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  const name = guardName.trim() || "Guard";
-                  spawnGuard(name);
-                  setGuardName("Guard");
-                  toast.success("Security guard deployed!");
-                }
-              }}
-            />
             <button
               type="button"
-              onClick={() => {
-                const name = guardName.trim() || "Guard";
-                spawnGuard(name);
-                setGuardName("Guard");
-                toast.success("Security guard deployed!");
-              }}
-              className="px-4 py-2 rounded-lg font-mono font-bold text-sm text-sky-400 transition-all"
+              data-ocid="admin.secondary_button"
+              onClick={handleAddAllRarities}
+              className="flex-1 py-2 rounded-lg font-mono font-bold text-xs text-cyan-300 transition-all flex items-center justify-center gap-1"
               style={{
-                backgroundColor: "rgba(14,165,233,0.2)",
-                border: "1px solid rgba(14,165,233,0.4)",
+                backgroundColor: "rgba(6,182,212,0.15)",
+                border: "1px solid rgba(6,182,212,0.35)",
               }}
             >
-              SPAWN
+              <FlaskConical className="w-3 h-3" />
+              ADD ALL RARITIES
+            </button>
+            <button
+              type="button"
+              data-ocid="admin.button"
+              onClick={handle9999All}
+              className="flex-1 py-2 rounded-lg font-mono font-black text-xs transition-all flex items-center justify-center gap-1"
+              style={{
+                backgroundColor: "rgba(255,107,255,0.2)",
+                border: "1px solid rgba(255,107,255,0.4)",
+                color: "#ff6bff",
+              }}
+            >
+              <Zap className="w-3 h-3" />
+              9999 ALL
             </button>
           </div>
         </div>
