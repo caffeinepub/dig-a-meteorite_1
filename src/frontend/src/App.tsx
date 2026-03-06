@@ -1,6 +1,5 @@
 import { Toaster } from "@/components/ui/sonner";
 import {
-  Coins,
   FlaskConical,
   Home,
   Landmark,
@@ -12,7 +11,6 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import AdminPanel from "./components/AdminPanel";
-import CreditsMachine from "./components/CreditsMachine";
 import DiggingScene from "./components/DiggingScene";
 import FuseMachine from "./components/FuseMachine";
 import { useGameStore } from "./components/GameStore";
@@ -20,16 +18,9 @@ import IndexPage from "./components/IndexPage";
 import InventoryPanel from "./components/InventoryPanel";
 import RebirthPanel from "./components/RebirthPanel";
 import SellShop from "./components/SellShop";
+import { usePlayerCount } from "./hooks/usePlayerCount";
 
-type Tab =
-  | "home"
-  | "dig"
-  | "inventory"
-  | "shop"
-  | "fuse"
-  | "credits"
-  | "rebirth"
-  | "admin";
+type Tab = "home" | "dig" | "inventory" | "shop" | "fuse" | "rebirth" | "admin";
 
 const TABS: {
   id: Tab;
@@ -68,12 +59,6 @@ const TABS: {
     ocid: "nav.fuse.tab",
   },
   {
-    id: "credits",
-    label: "Credits",
-    icon: <Coins className="w-4 h-4" />,
-    ocid: "nav.credits.tab",
-  },
-  {
     id: "rebirth",
     label: "Rebirth",
     icon: <RotateCcw className="w-4 h-4" />,
@@ -99,8 +84,6 @@ function renderTab(tab: Tab, onNavigate: (t: string) => void) {
       return <SellShop />;
     case "fuse":
       return <FuseMachine />;
-    case "credits":
-      return <CreditsMachine />;
     case "rebirth":
       return <RebirthPanel />;
     case "admin":
@@ -111,6 +94,7 @@ function renderTab(tab: Tab, onNavigate: (t: string) => void) {
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>("home");
   const { credits, totalFound } = useGameStore();
+  const playerCount = usePlayerCount();
 
   const formatNum = (n: number) => {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -163,9 +147,20 @@ export default function App() {
           ))}
         </nav>
 
-        <div className="flex gap-4 text-xs font-mono">
+        <div className="flex items-center gap-4 text-xs font-mono">
           <span className="text-yellow-400">{formatNum(credits)} ✦</span>
           <span className="text-cyan-400">{formatNum(totalFound)} found</span>
+          <span
+            data-ocid="topbar.player_count.section"
+            className="flex items-center gap-1.5 text-emerald-400"
+            title="Players currently online"
+          >
+            <span
+              className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"
+              aria-hidden="true"
+            />
+            {playerCount} online
+          </span>
         </div>
       </div>
 
@@ -177,9 +172,20 @@ export default function App() {
             Meteorite Digger
           </span>
         </div>
-        <div className="flex gap-3 text-xs font-mono">
+        <div className="flex items-center gap-3 text-xs font-mono">
           <span className="text-yellow-400">{formatNum(credits)} ✦</span>
           <span className="text-cyan-400">{formatNum(totalFound)}</span>
+          <span
+            data-ocid="topbar.player_count.section"
+            className="flex items-center gap-1 text-emerald-400"
+            title="Players currently online"
+          >
+            <span
+              className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"
+              aria-hidden="true"
+            />
+            {playerCount}
+          </span>
         </div>
       </div>
 

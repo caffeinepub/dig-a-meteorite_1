@@ -1,5 +1,6 @@
-import { Landmark, Lock } from "lucide-react";
-import { motion } from "motion/react";
+import { Landmark, Lock, Plus, Trash2, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useState } from "react";
 import {
   RARITIES,
   RARITY_COLORS,
@@ -35,7 +36,6 @@ function MeteoriteOrb({
           : `0 0 12px 3px ${color}88`,
       }}
     >
-      {/* Inner highlight */}
       <div
         className="absolute top-1 left-1 rounded-full opacity-60"
         style={{
@@ -70,11 +70,284 @@ export function RarityBadge({ rarity }: { rarity: Rarity }) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Picker modal — choose which rarity to place on a plot
+// ---------------------------------------------------------------------------
+function RarityPickerModal({
+  plotIndex,
+  onClose,
+}: {
+  plotIndex: number;
+  onClose: () => void;
+}) {
+  const { inventory, placeInMuseum } = useGameStore();
+
+  const available = RARITIES.filter((r) => (inventory[r] || 0) > 0);
+
+  return (
+    <motion.div
+      data-ocid="museum.picker.modal"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.85)" }}
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.9, y: 20 }}
+        className="relative rounded-2xl p-5 w-full max-w-sm overflow-y-auto max-h-[80vh]"
+        style={{
+          background: "linear-gradient(180deg, #1a1525 0%, #14101e 100%)",
+          border: "2px solid #c9a84c66",
+          boxShadow: "0 0 40px #c9a84c22",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <p
+            className="text-sm font-bold uppercase tracking-widest"
+            style={{ color: "#e8d5a0" }}
+          >
+            Place on Plot {plotIndex + 1}
+          </p>
+          <button
+            type="button"
+            data-ocid="museum.picker.close_button"
+            onClick={onClose}
+            className="p-1 rounded-lg transition-all hover:bg-white/10"
+          >
+            <X className="w-4 h-4" style={{ color: "#c9a84c" }} />
+          </button>
+        </div>
+
+        {available.length === 0 ? (
+          <div
+            data-ocid="museum.picker.empty_state"
+            className="text-center py-8"
+          >
+            <p className="text-sm" style={{ color: "#c9a84c88" }}>
+              No meteorites in inventory. Go dig some first!
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {available.map((rarity) => {
+              const color = RARITY_COLORS[rarity];
+              const count = inventory[rarity] || 0;
+              return (
+                <button
+                  key={rarity}
+                  type="button"
+                  data-ocid={`museum.picker.${rarity}.button`}
+                  onClick={() => {
+                    placeInMuseum(plotIndex, rarity);
+                    onClose();
+                  }}
+                  className="flex flex-col items-center gap-2 p-3 rounded-xl transition-all hover:scale-105 active:scale-95"
+                  style={{
+                    background: `linear-gradient(180deg, ${color}18 0%, ${color}08 100%)`,
+                    border: `1px solid ${color}55`,
+                  }}
+                >
+                  <MeteoriteOrb rarity={rarity} size={40} />
+                  <RarityBadge rarity={rarity} />
+                  <span
+                    className="text-xs font-mono"
+                    style={{ color: "#c9a84c88" }}
+                  >
+                    ×{count.toLocaleString()}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// A single museum plot
+// ---------------------------------------------------------------------------
+function MuseumPlot({
+  index,
+  rarity,
+  onPlace,
+  onRemove,
+}: {
+  index: number;
+  rarity: Rarity | null;
+  onPlace: (plotIndex: number) => void;
+  onRemove: (plotIndex: number) => void;
+}) {
+  const color = rarity ? RARITY_COLORS[rarity] : "#c9a84c";
+  const hasItem = !!rarity;
+
+  return (
+    <motion.div
+      data-ocid={`museum.plot.item.${index + 1}`}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.04, duration: 0.35, ease: "easeOut" }}
+      className="relative flex flex-col rounded-xl overflow-hidden"
+      style={{
+        border: hasItem ? `2px solid ${color}66` : "2px solid #2a2535",
+        background: hasItem
+          ? `linear-gradient(180deg, ${color}0a 0%, #0d0b1488 100%)`
+          : "linear-gradient(180deg, #0f0c1a 0%, #0a0812 100%)",
+        boxShadow: hasItem
+          ? `0 0 20px 2px ${color}22, inset 0 0 20px ${color}08`
+          : "none",
+      }}
+    >
+      {/* Plot number badge */}
+      <div
+        className="absolute top-2 left-2 text-[9px] font-mono rounded px-1"
+        style={{
+          color: "#c9a84c88",
+          background: "#0a081288",
+        }}
+      >
+        #{index + 1}
+      </div>
+
+      {/* Remove button */}
+      {hasItem && (
+        <button
+          type="button"
+          data-ocid={`museum.plot.delete_button.${index + 1}`}
+          onClick={() => onRemove(index)}
+          title="Remove from plot"
+          className="absolute top-2 right-2 p-1 rounded-lg transition-all hover:bg-red-500/20 z-10"
+        >
+          <Trash2 className="w-3 h-3" style={{ color: "#ef444488" }} />
+        </button>
+      )}
+
+      {/* Display area */}
+      <div
+        className="flex items-center justify-center py-5 relative min-h-[100px]"
+        style={{
+          background: hasItem
+            ? `radial-gradient(ellipse at 50% 80%, ${color}15 0%, transparent 70%)`
+            : "transparent",
+          borderBottom: hasItem ? `1px solid ${color}33` : "1px solid #2a2535",
+        }}
+      >
+        {hasItem && (
+          <div
+            className="absolute inset-x-0 top-0 h-6 pointer-events-none"
+            style={{
+              background: `radial-gradient(ellipse at 50% 0%, ${color}30 0%, transparent 70%)`,
+            }}
+          />
+        )}
+
+        {hasItem ? (
+          <motion.div
+            animate={{ y: [0, -4, 0] }}
+            transition={{
+              duration: 3,
+              repeat: Number.POSITIVE_INFINITY,
+              ease: "easeInOut",
+              delay: index * 0.3,
+            }}
+          >
+            <MeteoriteOrb rarity={rarity} size={64} />
+          </motion.div>
+        ) : (
+          <button
+            type="button"
+            data-ocid={`museum.plot.open_modal_button.${index + 1}`}
+            onClick={() => onPlace(index)}
+            className="w-16 h-16 rounded-full border-2 border-dashed flex items-center justify-center transition-all hover:border-yellow-600/60 hover:bg-yellow-500/5 group"
+            style={{ borderColor: "#3a3550" }}
+            title="Place a meteorite here"
+          >
+            <Plus
+              className="w-6 h-6 opacity-30 group-hover:opacity-70 transition-all"
+              style={{ color: "#c9a84c" }}
+            />
+          </button>
+        )}
+      </div>
+
+      {/* Plaque */}
+      <div
+        className="px-3 py-3 flex flex-col items-center gap-1.5"
+        style={{
+          background: "linear-gradient(180deg, #1a1525 0%, #140f1e 100%)",
+          borderTop: hasItem ? "1px solid #c9a84c44" : "1px solid #2a2535",
+        }}
+      >
+        {hasItem && (
+          <div
+            className="w-8 h-0.5 rounded-full mb-0.5"
+            style={{
+              background:
+                "linear-gradient(90deg, transparent, #c9a84c, transparent)",
+            }}
+          />
+        )}
+
+        {hasItem ? (
+          <>
+            <RarityBadge rarity={rarity} />
+            <button
+              type="button"
+              data-ocid={`museum.plot.edit_button.${index + 1}`}
+              onClick={() => onPlace(index)}
+              className="text-[9px] uppercase tracking-widest opacity-40 hover:opacity-80 transition-all mt-0.5"
+              style={{
+                color: "#c9a84c",
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
+            >
+              swap
+            </button>
+          </>
+        ) : (
+          <p
+            className="text-[9px] uppercase tracking-widest opacity-25"
+            style={{
+              color: "#c9a84c",
+              fontFamily: "'JetBrains Mono', monospace",
+            }}
+          >
+            empty plot
+          </p>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main InventoryPanel
+// ---------------------------------------------------------------------------
 export default function InventoryPanel() {
-  const { inventory, totalFound } = useGameStore();
+  const {
+    inventory,
+    totalFound,
+    museumPlots,
+    maxMuseumPlots,
+    removeFromMuseum,
+  } = useGameStore();
+  const [pickerPlot, setPickerPlot] = useState<number | null>(null);
 
   const totalItems = Object.values(inventory).reduce((a, b) => a + b, 0);
-  const hasAny = totalItems > 0;
+  const placedCount = Object.values(museumPlots).filter(Boolean).length;
+
+  // Build array of plots
+  const plots: Array<Rarity | null> = Array.from(
+    { length: maxMuseumPlots },
+    (_, i) => museumPlots[i] ?? null,
+  );
 
   return (
     <div
@@ -84,7 +357,7 @@ export default function InventoryPanel() {
           "linear-gradient(180deg, #0d0b14 0%, #100d1c 40%, #14101e 70%, #1a1525 100%)",
       }}
     >
-      {/* Museum ceiling / top atmosphere */}
+      {/* Museum ceiling */}
       <div
         className="relative flex-shrink-0"
         style={{
@@ -93,7 +366,6 @@ export default function InventoryPanel() {
           paddingBottom: "2px",
         }}
       >
-        {/* Decorative ceiling lights */}
         <div
           className="absolute inset-x-0 top-0 h-1"
           style={{
@@ -102,7 +374,6 @@ export default function InventoryPanel() {
           }}
         />
 
-        {/* Grand museum header */}
         <div className="flex flex-col items-center pt-8 pb-4 px-4 text-center">
           <motion.div
             initial={{ opacity: 0, y: -16 }}
@@ -123,7 +394,7 @@ export default function InventoryPanel() {
                 letterSpacing: "0.12em",
               }}
             >
-              🏛️ Meteorite Museum
+              Meteorite Museum
             </h1>
             <Landmark
               className="w-8 h-8 flex-shrink-0"
@@ -131,7 +402,6 @@ export default function InventoryPanel() {
             />
           </motion.div>
 
-          {/* Gold divider */}
           <motion.div
             initial={{ scaleX: 0 }}
             animate={{ scaleX: 1 }}
@@ -143,7 +413,6 @@ export default function InventoryPanel() {
             }}
           />
 
-          {/* Stats bar */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -154,12 +423,25 @@ export default function InventoryPanel() {
               className="flex flex-col items-center gap-0.5"
               style={{ color: "#c9a84c" }}
             >
-              <span className="opacity-60 text-[10px]">In Collection</span>
+              <span className="opacity-60 text-[10px]">In Inventory</span>
               <span
                 className="text-base font-bold"
                 style={{ color: "#f0d080", textShadow: "0 0 10px #c9a84c" }}
               >
                 {totalItems.toLocaleString()}
+              </span>
+            </div>
+            <div className="w-px h-8" style={{ background: "#c9a84c44" }} />
+            <div
+              className="flex flex-col items-center gap-0.5"
+              style={{ color: "#c9a84c" }}
+            >
+              <span className="opacity-60 text-[10px]">On Display</span>
+              <span
+                className="text-base font-bold"
+                style={{ color: "#f0d080", textShadow: "0 0 10px #c9a84c" }}
+              >
+                {placedCount}/{maxMuseumPlots}
               </span>
             </div>
             <div className="w-px h-8" style={{ background: "#c9a84c44" }} />
@@ -178,7 +460,6 @@ export default function InventoryPanel() {
           </motion.div>
         </div>
 
-        {/* Bottom divider of header */}
         <div
           className="h-px w-full"
           style={{
@@ -190,210 +471,105 @@ export default function InventoryPanel() {
 
       {/* Museum floor */}
       <div className="flex-1 p-4 md:p-6">
-        {!hasAny ? (
-          <motion.div
-            data-ocid="inventory.empty_state"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex-1 flex flex-col items-center justify-center gap-6 text-center py-20"
-          >
-            {/* Empty pedestals silhouette */}
-            <div className="flex gap-6 opacity-20">
-              {[
-                { sz: 40, id: "sm-left" },
-                { sz: 56, id: "lg-center" },
-                { sz: 40, id: "sm-right" },
-              ].map(({ sz, id }) => (
-                <div
-                  key={id}
-                  className="rounded-full border-2 border-dashed"
-                  style={{
-                    width: sz,
-                    height: sz,
-                    borderColor: "#c9a84c",
-                  }}
-                />
-              ))}
-            </div>
-            <div>
-              <p
-                className="text-lg font-bold uppercase tracking-widest mb-1"
-                style={{
-                  color: "#c9a84c99",
-                  fontFamily: "'Bricolage Grotesque', sans-serif",
-                }}
-              >
-                Hall is Empty
-              </p>
-              <p className="text-sm" style={{ color: "#c9a84c55" }}>
-                Visit the Dig tab to begin your collection
-              </p>
-            </div>
-          </motion.div>
-        ) : (
+        {/* Section label */}
+        <p
+          className="text-center text-[10px] uppercase tracking-[0.3em] mb-5 opacity-40"
+          style={{
+            color: "#c9a84c",
+            fontFamily: "'JetBrains Mono', monospace",
+          }}
+        >
+          — Display Plots — click + to place a meteorite —
+        </p>
+
+        {/* Plot grid */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
+          {plots.map((rarity, i) => {
+            const stableKey = `museum-plot-${String.fromCharCode(65 + (i % 26))}${Math.floor(i / 26)}`;
+            return (
+              <MuseumPlot
+                key={stableKey}
+                index={i}
+                rarity={rarity}
+                onPlace={(idx) => setPickerPlot(idx)}
+                onRemove={(idx) => removeFromMuseum(idx)}
+              />
+            );
+          })}
+        </div>
+
+        {/* Inventory collection below (reference only) */}
+        {totalItems > 0 && (
           <>
-            {/* Museum floor grid label */}
-            <p
-              className="text-center text-[10px] uppercase tracking-[0.3em] mb-6 opacity-40"
-              style={{
-                color: "#c9a84c",
-                fontFamily: "'JetBrains Mono', monospace",
-              }}
-            >
-              — Permanent Exhibition —
-            </p>
-
-            {/* Pedestal grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
-              {RARITIES.map((rarity, i) => {
-                const count = inventory[rarity] || 0;
-                const color = RARITY_COLORS[rarity];
-                const hasItem = count > 0;
-
-                return (
-                  <motion.div
-                    key={rarity}
-                    data-ocid={`inventory.item.${i + 1}`}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      delay: i * 0.05,
-                      duration: 0.4,
-                      ease: "easeOut",
-                    }}
-                    className="relative flex flex-col rounded-xl overflow-hidden"
-                    style={{
-                      border: hasItem
-                        ? `2px solid ${color}66`
-                        : "2px solid #2a2535",
-                      background: hasItem
-                        ? `linear-gradient(180deg, ${color}0a 0%, #0d0b1488 100%)`
-                        : "linear-gradient(180deg, #0f0c1a 0%, #0a0812 100%)",
-                      boxShadow: hasItem
-                        ? `0 0 20px 2px ${color}22, inset 0 0 20px ${color}08`
-                        : "none",
-                    }}
-                  >
-                    {/* Glass case top — display area */}
-                    <div
-                      className="flex items-center justify-center py-5 relative"
-                      style={{
-                        background: hasItem
-                          ? `radial-gradient(ellipse at 50% 80%, ${color}15 0%, transparent 70%)`
-                          : "transparent",
-                        borderBottom: hasItem
-                          ? `1px solid ${color}33`
-                          : "1px solid #2a2535",
-                      }}
-                    >
-                      {/* Spotlight from above */}
-                      {hasItem && (
-                        <div
-                          className="absolute inset-x-0 top-0 h-6 pointer-events-none"
-                          style={{
-                            background: `radial-gradient(ellipse at 50% 0%, ${color}30 0%, transparent 70%)`,
-                          }}
-                        />
-                      )}
-
-                      {hasItem ? (
-                        <motion.div
-                          animate={{
-                            y: [0, -4, 0],
-                          }}
-                          transition={{
-                            duration: 3,
-                            repeat: Number.POSITIVE_INFINITY,
-                            ease: "easeInOut",
-                          }}
-                        >
-                          <MeteoriteOrb rarity={rarity} size={64} />
-                        </motion.div>
-                      ) : (
-                        <div
-                          className="w-16 h-16 rounded-full border-2 border-dashed flex items-center justify-center"
-                          style={{ borderColor: "#2a2535" }}
-                        >
-                          <Lock
-                            className="w-5 h-5 opacity-20"
-                            style={{ color: "#6b6080" }}
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Gold plaque section */}
-                    <div
-                      className="px-3 py-3 flex flex-col items-center gap-1.5"
-                      style={{
-                        background:
-                          "linear-gradient(180deg, #1a1525 0%, #140f1e 100%)",
-                        borderTop: hasItem
-                          ? "1px solid #c9a84c44"
-                          : "1px solid #2a2535",
-                      }}
-                    >
-                      {/* Plaque border top accent */}
-                      {hasItem && (
-                        <div
-                          className="w-8 h-0.5 rounded-full mb-0.5"
-                          style={{
-                            background:
-                              "linear-gradient(90deg, transparent, #c9a84c, transparent)",
-                          }}
-                        />
-                      )}
-
-                      <RarityBadge rarity={rarity} />
-
-                      {/* Count display */}
-                      <div
-                        className="text-2xl font-bold font-mono leading-none"
-                        style={{
-                          color: hasItem ? color : "#3a3450",
-                          textShadow: hasItem ? `0 0 12px ${color}88` : "none",
-                        }}
-                      >
-                        {hasItem ? count.toLocaleString() : "—"}
-                      </div>
-
-                      {hasItem && (
-                        <p
-                          className="text-[9px] uppercase tracking-widest opacity-40"
-                          style={{
-                            color: "#c9a84c",
-                            fontFamily: "'JetBrains Mono', monospace",
-                          }}
-                        >
-                          specimens
-                        </p>
-                      )}
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-
-            {/* Museum floor texture strip */}
             <div
-              className="mt-8 h-px w-full"
+              className="mt-10 h-px w-full"
               style={{
                 background:
                   "linear-gradient(90deg, transparent 0%, #c9a84c33 25%, #c9a84c55 50%, #c9a84c33 75%, transparent 100%)",
               }}
             />
             <p
-              className="text-center text-[9px] mt-3 uppercase tracking-[0.4em] opacity-20"
+              className="text-center text-[10px] uppercase tracking-[0.3em] mt-5 mb-4 opacity-40"
               style={{
                 color: "#c9a84c",
                 fontFamily: "'JetBrains Mono', monospace",
               }}
             >
-              Meteorite Museum · Est. 2026
+              — Inventory Reference —
             </p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {RARITIES.filter((r) => (inventory[r] || 0) > 0).map((rarity) => {
+                const color = RARITY_COLORS[rarity];
+                return (
+                  <div
+                    key={rarity}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono"
+                    style={{
+                      background: `${color}18`,
+                      border: `1px solid ${color}44`,
+                      color: color,
+                    }}
+                  >
+                    <MeteoriteOrb rarity={rarity} size={16} />
+                    {RARITY_LABELS[rarity]}
+                    <span className="opacity-60">
+                      ×{(inventory[rarity] || 0).toLocaleString()}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </>
         )}
+
+        {/* Footer */}
+        <div
+          className="mt-8 h-px w-full"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent 0%, #c9a84c33 25%, #c9a84c55 50%, #c9a84c33 75%, transparent 100%)",
+          }}
+        />
+        <p
+          className="text-center text-[9px] mt-3 uppercase tracking-[0.4em] opacity-20"
+          style={{
+            color: "#c9a84c",
+            fontFamily: "'JetBrains Mono', monospace",
+          }}
+        >
+          Meteorite Museum · Est. 2026
+        </p>
       </div>
+
+      {/* Rarity Picker Modal */}
+      <AnimatePresence>
+        {pickerPlot !== null && (
+          <RarityPickerModal
+            plotIndex={pickerPlot}
+            onClose={() => setPickerPlot(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -1,5 +1,4 @@
 import {
-  Coins,
   Eye,
   EyeOff,
   FlaskConical,
@@ -69,15 +68,6 @@ const FEATURES = [
     glow: "rgba(249,115,22,0.35)",
   },
   {
-    icon: "💳",
-    lucide: <Coins className="w-5 h-5" />,
-    title: "Credits Machine",
-    desc: "Exchange meteorites for Caffeine Credits at premium rates",
-    tab: "credits",
-    accent: "#10b981",
-    glow: "rgba(16,185,129,0.35)",
-  },
-  {
     icon: "🔄",
     lucide: <RotateCcw className="w-5 h-5" />,
     title: "Rebirth System",
@@ -125,13 +115,6 @@ const QUICK_ACTIONS = [
     tab: "fuse",
     emoji: "⚗️",
     color: "#f97316",
-  },
-  {
-    icon: <Coins className="w-5 h-5" />,
-    label: "Credits",
-    tab: "credits",
-    emoji: "💳",
-    color: "#10b981",
   },
   {
     icon: <RotateCcw className="w-5 h-5" />,

@@ -580,7 +580,7 @@ export default function AdminPanel() {
               </span>
             )}
             <span className="text-xs text-muted-foreground font-mono">
-              (Space = up, Shift = down)
+              (double-tap Space to fly, Shift = down)
             </span>
           </div>
           <button

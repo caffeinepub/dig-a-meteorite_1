@@ -114,6 +114,9 @@ interface GameState {
   teleportTarget: string | null; // building id to teleport to
   securityGuards: number; // count of spawned guards
   isPublic: boolean; // public or private profile/museum visibility
+  museumPlots: Record<number, Rarity | null>; // plotIndex -> rarity placed there
+  maxMuseumPlots: number; // total available plots (grows with rebirth)
+  fuseSlots: number; // number of fuse machine slots (starts at 3, +1 per rebirth)
 
   // Actions
   digMeteor: () => Rarity;
@@ -139,6 +142,9 @@ interface GameState {
   adminFuseAll: () => void;
   clearLastDig: () => void;
   setPublic: (value: boolean) => void;
+  placeInMuseum: (plotIndex: number, rarity: Rarity) => boolean;
+  removeFromMuseum: (plotIndex: number) => void;
+  clearMuseumPlot: (plotIndex: number) => void;
 }
 
 function weightedRandom(): Rarity {
@@ -176,6 +182,9 @@ export const useGameStore = create<GameState>()(
       teleportTarget: null,
       securityGuards: 0,
       isPublic: true,
+      museumPlots: {},
+      maxMuseumPlots: 6,
+      fuseSlots: 3,
 
       digMeteor: () => {
         const { multiplier, inventory, totalFound, godMode, nextDigRarity } =
@@ -224,20 +233,22 @@ export const useGameStore = create<GameState>()(
       },
 
       fuseMeteors: (rarity: string) => {
-        const { inventory, godMode } = get();
+        const { inventory, godMode, fuseSlots } = get();
         const rarityIndex = RARITIES.indexOf(rarity as Rarity);
+        const slotsNeeded = Math.max(3, fuseSlots);
 
         if (rarityIndex === -1 || rarityIndex >= RARITIES.length - 1) {
           return { success: false, result: "" };
         }
 
         const available = inventory[rarity] || 0;
-        if (!godMode && available < 3) return { success: false, result: "" };
+        if (!godMode && available < slotsNeeded)
+          return { success: false, result: "" };
 
         const nextRarity = RARITIES[rarityIndex + 1];
         const newInventory = {
           ...inventory,
-          [rarity]: godMode ? available : available - 3,
+          [rarity]: godMode ? available : available - slotsNeeded,
           [nextRarity]: (inventory[nextRarity] || 0) + 1,
         };
 
@@ -264,9 +275,23 @@ export const useGameStore = create<GameState>()(
       },
 
       rebirth: () => {
-        const { totalFound, rebirthCount, multiplier, baseSize } = get();
+        const {
+          totalFound,
+          rebirthCount,
+          multiplier,
+          baseSize,
+          maxMuseumPlots,
+          museumPlots,
+          fuseSlots,
+        } = get();
         const required = 50 * (rebirthCount + 1);
         if (totalFound < required) return false;
+
+        // Clear museum plots on rebirth
+        const clearedPlots: Record<number, Rarity | null> = {};
+        for (const key in museumPlots) {
+          clearedPlots[Number(key)] = null;
+        }
 
         set({
           inventory: { ...defaultInventory },
@@ -276,6 +301,9 @@ export const useGameStore = create<GameState>()(
           baseSize: baseSize + 1,
           totalFound: 0,
           lastDigResult: null,
+          maxMuseumPlots: maxMuseumPlots + 3, // +3 plots per rebirth
+          museumPlots: clearedPlots,
+          fuseSlots: fuseSlots + 1, // +1 fuse slot per rebirth
         });
         return true;
       },
@@ -296,6 +324,9 @@ export const useGameStore = create<GameState>()(
           moveSpeed: 1,
           nextDigRarity: null,
           securityGuards: 0,
+          museumPlots: {},
+          maxMuseumPlots: 6,
+          fuseSlots: 3,
         });
       },
 
@@ -324,6 +355,7 @@ export const useGameStore = create<GameState>()(
           rebirthCount: safeCount,
           baseSize: safeCount + 1,
           multiplier: safeCount + 1,
+          fuseSlots: 3 + safeCount, // 3 base + 1 per rebirth
         });
       },
 
@@ -420,6 +452,44 @@ export const useGameStore = create<GameState>()(
 
       setPublic: (value: boolean) => {
         set({ isPublic: value });
+      },
+
+      placeInMuseum: (plotIndex: number, rarity: Rarity) => {
+        const { inventory, museumPlots, maxMuseumPlots, godMode } = get();
+        if (plotIndex < 0 || plotIndex >= maxMuseumPlots) return false;
+        const available = inventory[rarity] || 0;
+        if (!godMode && available < 1) return false;
+        // Remove whatever was previously in that plot (return it to inventory)
+        const prev = museumPlots[plotIndex];
+        const newInventory = { ...inventory };
+        if (prev && prev !== rarity) {
+          newInventory[prev] = (newInventory[prev] || 0) + 1;
+        }
+        if (!godMode) {
+          newInventory[rarity] = available - 1;
+        }
+        set({
+          museumPlots: { ...museumPlots, [plotIndex]: rarity },
+          inventory: newInventory,
+        });
+        return true;
+      },
+
+      removeFromMuseum: (plotIndex: number) => {
+        const { museumPlots, inventory, godMode } = get();
+        const rarity = museumPlots[plotIndex];
+        if (!rarity) return;
+        const newInventory = { ...inventory };
+        if (!godMode) {
+          newInventory[rarity] = (newInventory[rarity] || 0) + 1;
+        }
+        const newPlots = { ...museumPlots, [plotIndex]: null };
+        set({ museumPlots: newPlots, inventory: newInventory });
+      },
+
+      clearMuseumPlot: (plotIndex: number) => {
+        const { museumPlots } = get();
+        set({ museumPlots: { ...museumPlots, [plotIndex]: null } });
       },
     }),
     {

@@ -104,6 +104,57 @@ function DirtParticle({
   );
 }
 
+// ─── Landing Dust Particle ────────────────────────────────────────────────────
+function LandingDustParticle({
+  position,
+  onDone,
+}: {
+  position: [number, number, number];
+  onDone: () => void;
+}) {
+  const mesh = useRef<THREE.Mesh>(null);
+  const velocity = useRef([
+    (Math.random() - 0.5) * 0.22,
+    Math.random() * 0.08 + 0.04,
+    (Math.random() - 0.5) * 0.22,
+  ]);
+  const lifetime = useRef(0);
+  const maxLife = 0.5;
+
+  useFrame((_s, delta) => {
+    if (!mesh.current) return;
+    lifetime.current += delta;
+    velocity.current[1] -= delta * 0.15;
+    mesh.current.position.x += velocity.current[0];
+    mesh.current.position.y = Math.max(
+      0,
+      mesh.current.position.y + velocity.current[1],
+    );
+    mesh.current.position.z += velocity.current[2];
+    const t = lifetime.current / maxLife;
+    mesh.current.scale.setScalar(Math.max(0, 1 - t));
+    if (lifetime.current > maxLife) onDone();
+  });
+
+  const dustColors = useMemo(
+    () => ["#e0e0e0", "#cccccc", "#f0f0f0", "#d8d8d8"],
+    [],
+  );
+  const color = dustColors[Math.floor(Math.random() * dustColors.length)];
+
+  return (
+    <mesh ref={mesh} position={position}>
+      <sphereGeometry args={[0.06, 5, 5]} />
+      <meshStandardMaterial
+        color={color}
+        roughness={0.9}
+        transparent
+        opacity={0.85}
+      />
+    </mesh>
+  );
+}
+
 // ─── Meteorite Glow ───────────────────────────────────────────────────────────
 function MeteoriteGlow({
   baseSize,
@@ -179,13 +230,21 @@ function PlayerCharacter({
   playerRef,
   isMoving,
   isDigging,
+  verticalVelRef,
+  isOnGroundRef,
 }: {
   playerRef: React.RefObject<THREE.Group | null>;
   isMoving: boolean;
   isDigging: boolean;
+  verticalVelRef: React.RefObject<number>;
+  isOnGroundRef: React.RefObject<boolean>;
 }) {
   const walkT = useRef(0);
   const digT = useRef(0);
+
+  // Squash-stretch scale targets
+  const scaleY = useRef(1);
+  const scaleXZ = useRef(1);
 
   // Limb refs
   const leftLegRef = useRef<THREE.Mesh>(null);
@@ -235,6 +294,42 @@ function PlayerCharacter({
       } else {
         digT.current = Math.max(digT.current - delta * 4, 0);
       }
+    }
+
+    // ── Squash-stretch based on vertical velocity ───────────────────────────
+    const velY = verticalVelRef.current ?? 0;
+    const onGround = isOnGroundRef.current ?? true;
+
+    let targetScaleY: number;
+    let targetScaleXZ: number;
+
+    if (onGround) {
+      targetScaleY = 1;
+      targetScaleXZ = 1;
+    } else if (velY > 5) {
+      // Takeoff — quick squash
+      targetScaleY = 0.75;
+      targetScaleXZ = 1.25;
+    } else if (velY > 0) {
+      // Ascending — stretch
+      targetScaleY = 1.2;
+      targetScaleXZ = 0.85;
+    } else {
+      // Descending — slight forward stretch
+      targetScaleY = 1.05;
+      targetScaleXZ = 0.95;
+    }
+
+    const lerpSpeed = 14 * delta;
+    scaleY.current += (targetScaleY - scaleY.current) * lerpSpeed;
+    scaleXZ.current += (targetScaleXZ - scaleXZ.current) * lerpSpeed;
+
+    if (playerRef.current) {
+      playerRef.current.scale.set(
+        scaleXZ.current,
+        scaleY.current,
+        scaleXZ.current,
+      );
     }
   });
 
@@ -941,6 +1036,8 @@ function ThirdPersonScene({
   onTeleportDone,
   flyMode,
   playerFrozen,
+  isFlying,
+  onToggleFly,
 }: {
   baseSize: number;
   onDig: () => void;
@@ -955,8 +1052,13 @@ function ThirdPersonScene({
   onTeleportDone?: () => void;
   flyMode?: boolean;
   playerFrozen?: boolean;
+  isFlying?: boolean;
+  onToggleFly?: () => void;
 }) {
   const [particles, setParticles] = useState<
+    { id: number; pos: [number, number, number] }[]
+  >([]);
+  const [landingParticles, setLandingParticles] = useState<
     { id: number; pos: [number, number, number] }[]
   >([]);
   const [showCrater, setShowCrater] = useState(false);
@@ -971,6 +1073,10 @@ function ThirdPersonScene({
   const playerVelY = useRef(0); // vertical velocity
   const playerFacing = useRef(0); // yaw of player body
   const isFalling = useRef(false);
+  const isOnGround = useRef(true); // true when standing on the ground
+  const wasAirborne = useRef(false); // tracks airborne state for landing detection
+  const spaceWasHeld = useRef(false); // tracks if space was held last frame (for jump edge detection)
+  const lastSpaceTap = useRef(0); // timestamp of last Space press for double-tap detection
 
   const { camera } = useThree();
 
@@ -1067,12 +1173,31 @@ function ThirdPersonScene({
       playerFacing.current = moveAngle;
     }
 
-    // Fly mode: allow vertical movement with Space (up) and ShiftLeft/KeyC (down)
-    if (flyMode) {
-      // Snap to ground when fly mode is first disabled
+    // ── Space key jump / double-tap fly ──────────────────────────────────────
+    const spaceDown = keys.has("Space");
+    const spaceJustPressed = spaceDown && !spaceWasHeld.current;
+    spaceWasHeld.current = spaceDown;
+
+    if (spaceJustPressed && !playerFrozen && !isFalling.current) {
+      const now = performance.now();
+      const timeSinceLastTap = now - lastSpaceTap.current;
+
+      if (flyMode && timeSinceLastTap < 350) {
+        // Double-tap Space within 350ms → toggle active fly
+        onToggleFly?.();
+      } else if (!isFlying && isOnGround.current) {
+        // Single tap on ground → jump
+        playerVelY.current = 9; // jump impulse
+        isOnGround.current = false;
+      }
+      lastSpaceTap.current = now;
+    }
+
+    // Active fly movement (isFlying on + flyMode enabled in admin)
+    if (isFlying && flyMode) {
       isFalling.current = false;
-      playerVelY.current = 0;
-      if (keys.has("Space")) {
+      // Drift upward while Space held, down with Shift/C
+      if (spaceDown) {
         playerY.current += speed * delta * 0.8;
       } else if (keys.has("ShiftLeft") || keys.has("KeyC")) {
         playerY.current = Math.max(0, playerY.current - speed * delta * 0.8);
@@ -1082,11 +1207,42 @@ function ThirdPersonScene({
       playerVelY.current -= 18 * delta; // gravity acceleration
       playerY.current += playerVelY.current * delta;
     } else {
-      // Snap back to ground when not falling
-      if (playerY.current > 0) {
-        playerY.current = 0;
+      // Regular gravity / jump arc
+      if (playerY.current > 0 || playerVelY.current > 0) {
+        wasAirborne.current = true;
+        playerVelY.current -= 22 * delta; // gravity pulls down
+        playerY.current = Math.max(
+          0,
+          playerY.current + playerVelY.current * delta,
+        );
+        if (playerY.current <= 0) {
+          playerY.current = 0;
+          playerVelY.current = 0;
+          isOnGround.current = true;
+          // Landing detected — spawn dust puff
+          if (wasAirborne.current) {
+            wasAirborne.current = false;
+            const dustCount = 8 + Math.floor(Math.random() * 5);
+            const dustBurst: { id: number; pos: [number, number, number] }[] =
+              [];
+            for (let i = 0; i < dustCount; i++) {
+              dustBurst.push({
+                id: particleId.current++,
+                pos: [
+                  playerPos.current.x + (Math.random() - 0.5) * 0.5,
+                  0.1,
+                  playerPos.current.z + (Math.random() - 0.5) * 0.5,
+                ],
+              });
+            }
+            setLandingParticles((prev) => [...prev, ...dustBurst]);
+          }
+        }
+      } else {
+        playerVelY.current = 0;
+        isOnGround.current = true;
+        wasAirborne.current = false;
       }
-      playerVelY.current = 0;
     }
 
     // Update player mesh position & rotation
@@ -1171,6 +1327,10 @@ function ThirdPersonScene({
     setParticles((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
+  const removeLandingParticle = useCallback((id: number) => {
+    setLandingParticles((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
   const w = 100;
 
   return (
@@ -1239,6 +1399,14 @@ function ThirdPersonScene({
         />
       ))}
 
+      {landingParticles.map((p) => (
+        <LandingDustParticle
+          key={p.id}
+          position={p.pos}
+          onDone={() => removeLandingParticle(p.id)}
+        />
+      ))}
+
       {/* Buildings on the map */}
       {BUILDINGS.map((b) => (
         <Building
@@ -1260,6 +1428,8 @@ function ThirdPersonScene({
         playerRef={playerRef}
         isMoving={isMoving}
         isDigging={isDigging}
+        verticalVelRef={playerVelY}
+        isOnGroundRef={isOnGround}
       />
     </>
   );
@@ -1500,7 +1670,7 @@ function getPanelTitle(panel: Exclude<ActivePanel, null>) {
     case "rebirth":
       return "🔄 Rebirth";
     case "inventory":
-      return "🎒 Collection";
+      return "🏛️ Meteorite Museum";
   }
 }
 
@@ -1602,6 +1772,7 @@ export default function DiggingScene() {
   const [fallEffect, setFallEffect] = useState(false);
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const [musicOn, setMusicOn] = useState(false);
+  const [isFlying, setIsFlying] = useState(false); // active flying state (toggled by double-tap Space when flyMode is on)
   const musicCtxRef = useRef<AudioContext | null>(null);
   const popupId = useRef(0);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -1643,6 +1814,13 @@ export default function DiggingScene() {
       document.exitPointerLock();
     }
   }, [activePanel]);
+
+  // If fly mode is disabled from admin, stop active flying
+  useEffect(() => {
+    if (!flyMode) {
+      setIsFlying(false);
+    }
+  }, [flyMode]);
 
   // Pointer Lock: click canvas to lock mouse, Escape to unlock
   useEffect(() => {
@@ -1926,8 +2104,8 @@ export default function DiggingScene() {
           }}
         >
           {isPointerLocked
-            ? "🖱 Mouse to look · ESC to unlock"
-            : "Click to look · WASD to move"}
+            ? `🖱 Mouse to look · ESC to unlock${flyMode ? (isFlying ? " · Flying ✈️ (Space=up, Shift=down)" : " · Double-tap Space to fly") : " · Space to jump"}`
+            : `Click to look · WASD to move${flyMode ? (isFlying ? " · Flying ✈️" : " · Double-tap Space to fly") : " · Space to jump"}`}
         </div>
       </div>
 
@@ -2117,6 +2295,8 @@ export default function DiggingScene() {
               onTeleportDone={() => adminTeleportTo(null)}
               flyMode={flyMode}
               playerFrozen={playerFrozen}
+              isFlying={isFlying}
+              onToggleFly={() => setIsFlying((f) => !f)}
             />
           </Suspense>
         </Canvas>
@@ -2356,7 +2536,7 @@ export default function DiggingScene() {
               transition={{ type: "spring", stiffness: 320, damping: 34 }}
               className="absolute bottom-0 left-0 right-0 z-40 rounded-t-2xl flex flex-col overflow-hidden"
               style={{
-                height: "62%",
+                height: activePanel === "inventory" ? "92%" : "62%",
                 background: "oklch(var(--card))",
                 border: "1px solid oklch(var(--border))",
                 borderBottom: "none",

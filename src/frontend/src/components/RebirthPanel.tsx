@@ -1,6 +1,7 @@
 import { Progress } from "@/components/ui/progress";
 import {
   AlertTriangle,
+  FlaskConical,
   Maximize2,
   RotateCcw,
   TrendingUp,
@@ -20,6 +21,7 @@ export default function RebirthPanel() {
     rebirth,
     inventory,
     credits,
+    fuseSlots,
   } = useGameStore();
   const [confirming, setConfirming] = useState(false);
   const [justRebirthed, setJustRebirthed] = useState(false);
@@ -193,7 +195,7 @@ export default function RebirthPanel() {
         <h3 className="text-sm font-bold text-foreground mb-3">
           Next Rebirth Rewards
         </h3>
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-4">
           <div className="flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-purple-400" />
             <span className="text-sm text-foreground">
@@ -206,10 +208,16 @@ export default function RebirthPanel() {
               Base: {baseSize} → {baseSize + 1}
             </span>
           </div>
+          <div className="flex items-center gap-2">
+            <FlaskConical className="w-4 h-4 text-purple-400" />
+            <span className="text-sm text-foreground">
+              Fuse Slots: {fuseSlots} → {fuseSlots + 1}
+            </span>
+          </div>
         </div>
         <p className="text-xs text-muted-foreground mt-2">
           Higher multiplier = more meteorites per dig. Bigger base = wider
-          excavation area.
+          excavation area. More fuse slots = fuse more at once.
         </p>
       </div>
 
