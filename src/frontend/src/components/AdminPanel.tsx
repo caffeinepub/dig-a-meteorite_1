@@ -3,9 +3,18 @@ import {
   Crown,
   FlaskConical,
   Lock,
+  MapPin,
   Plus,
+  Radio,
   RotateCcw,
+  Shield,
+  ShoppingBag,
+  Skull,
+  Snowflake,
+  Sparkles,
+  Swords,
   Terminal,
+  Wind,
   Zap,
 } from "lucide-react";
 import { motion } from "motion/react";
@@ -13,6 +22,7 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   RARITIES,
+  RARITY_COLORS,
   RARITY_LABELS,
   type Rarity,
   useGameStore,
@@ -22,6 +32,14 @@ const ADMIN_CODE = "9999";
 const CELESTIAL_CODE = "3752";
 const IMPOSSIBLE_CODE = "4637";
 
+const BUILDINGS = [
+  { id: "fuse", label: "Fuse Machine", emoji: "⚗️", color: "#7c3aed" },
+  { id: "inventory", label: "Museum", emoji: "🏛️", color: "#eab308" },
+  { id: "shop", label: "Sell Shop", emoji: "🛒", color: "#22c55e" },
+  { id: "rebirth", label: "Rebirth Altar", emoji: "🔄", color: "#f97316" },
+  { id: "credits", label: "Credits Machine", emoji: "💰", color: "#eab308" },
+];
+
 export default function AdminPanel() {
   const [code, setCode] = useState("");
   const [unlocked, setUnlocked] = useState(false);
@@ -29,8 +47,16 @@ export default function AdminPanel() {
   const [creditsInput, setCreditsInput] = useState("");
   const [multiplierInput, setMultiplierInput] = useState("");
   const [rebirthInput, setRebirthInput] = useState("");
+  const [baseSizeInput, setBaseSizeInput] = useState("");
+  const [speedInput, setSpeedInput] = useState("");
+  const [guardInput, setGuardInput] = useState("1");
   const [meteorRarity, setMeteorRarity] = useState<Rarity>("legendary");
   const [meteorQty, setMeteorQty] = useState("10");
+  const [nextDigRarity, setNextDigRarity] = useState<Rarity>("googleplex");
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const deleteConfirmTimeout = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const inputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -40,11 +66,29 @@ export default function AdminPanel() {
     totalFound,
     baseSize,
     inventory,
+    godMode,
+    flyMode,
+    playerFrozen,
+    meteorShowerActive,
+    moveSpeed,
+    securityGuards,
+    nextDigRarity: forcedRarity,
     adminReset,
     adminSetCredits,
     adminSetMultiplier,
     adminAddMeteors,
     adminSetRebirth,
+    adminSetBaseSize,
+    adminSetMoveSpeed,
+    adminToggleGodMode,
+    adminToggleFlyMode,
+    adminToggleFreezePlayer,
+    adminTriggerMeteorShower,
+    adminSetNextDig,
+    adminTeleportTo,
+    adminSpawnGuards,
+    adminSellAll,
+    adminFuseAll,
   } = useGameStore();
 
   const handleCodeSubmit = () => {
@@ -105,6 +149,22 @@ export default function AdminPanel() {
     );
   };
 
+  const handleSetBaseSize = () => {
+    const val = Number.parseInt(baseSizeInput);
+    if (Number.isNaN(val) || val < 1) return;
+    adminSetBaseSize(val);
+    setBaseSizeInput("");
+    toast.success(`Base size set to ${val}`);
+  };
+
+  const handleSetSpeed = () => {
+    const val = Number.parseFloat(speedInput);
+    if (Number.isNaN(val) || val <= 0) return;
+    adminSetMoveSpeed(val);
+    setSpeedInput("");
+    toast.success(`Move speed set to ×${val}`);
+  };
+
   const handleAddMeteors = () => {
     const qty = Number.parseInt(meteorQty);
     if (Number.isNaN(qty) || qty < 1) return;
@@ -128,6 +188,8 @@ export default function AdminPanel() {
       adminAddMeteors(r, 9999);
     }
     adminSetRebirth(50);
+    adminSetMoveSpeed(5);
+    if (!godMode) adminToggleGodMode();
     toast.success("🔥 MAX EVERYTHING activated!", { duration: 3000 });
   };
 
@@ -136,6 +198,50 @@ export default function AdminPanel() {
       adminAddMeteors(r, 9999);
     }
     toast.success("💥 Added 9999 of EVERY rarity!");
+  };
+
+  const handleForceNextDig = () => {
+    adminSetNextDig(nextDigRarity);
+    toast.success(`✅ Next dig guaranteed: ${RARITY_LABELS[nextDigRarity]}`, {
+      duration: 3000,
+    });
+  };
+
+  const handleClearNextDig = () => {
+    adminSetNextDig(null);
+    toast.success("Forced dig cleared — back to random.");
+  };
+
+  const handleTeleport = (buildingId: string) => {
+    adminTeleportTo(buildingId);
+    const b = BUILDINGS.find((x) => x.id === buildingId);
+    toast.success(`${b?.emoji} Teleporting to ${b?.label}…`, {
+      duration: 1800,
+    });
+    // Auto-clear after a moment
+    setTimeout(() => adminTeleportTo(null), 500);
+  };
+
+  const handleSpawnGuards = () => {
+    const n = Number.parseInt(guardInput);
+    if (Number.isNaN(n) || n < 1) return;
+    adminSpawnGuards(n);
+    toast.success(`Spawned ${n} Security Guard${n > 1 ? "s" : ""}! 🛡️`);
+  };
+
+  const handleRemoveGuards = () => {
+    adminSpawnGuards(-securityGuards);
+    toast.success("All security guards removed.");
+  };
+
+  const handleSellAll = () => {
+    adminSellAll();
+    toast.success("💰 All meteorites sold!");
+  };
+
+  const handleFuseAll = () => {
+    adminFuseAll();
+    toast.success("⚗️ Fused all meteorites upward!");
   };
 
   if (!unlocked) {
@@ -277,7 +383,7 @@ export default function AdminPanel() {
 
   // ─── Admin Dashboard ──────────────────────────────────────────────────────
   return (
-    <div className="h-full flex flex-col gap-4 p-4 overflow-y-auto">
+    <div className="h-full flex flex-col gap-3 p-4 overflow-y-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -285,6 +391,18 @@ export default function AdminPanel() {
           <h2 className="text-xl font-mono font-bold text-green-400">
             ADMIN DASHBOARD
           </h2>
+          {godMode && (
+            <span
+              className="text-xs font-mono font-bold px-2 py-0.5 rounded-full animate-pulse"
+              style={{
+                background: "rgba(255,107,255,0.2)",
+                border: "1px solid #ff6bff",
+                color: "#ff6bff",
+              }}
+            >
+              GOD MODE
+            </span>
+          )}
         </div>
         <button
           type="button"
@@ -334,7 +452,16 @@ export default function AdminPanel() {
           { label: "Multiplier", value: `×${multiplier}` },
           { label: "Base Size", value: baseSize },
           { label: "Rebirths", value: rebirthCount },
+          { label: "Move Speed", value: `×${moveSpeed.toFixed(1)}` },
           { label: "Total Found", value: totalFound.toLocaleString() },
+          { label: "Guards", value: securityGuards },
+          { label: "God Mode", value: godMode ? "ON 🔥" : "OFF" },
+          { label: "Fly Mode", value: flyMode ? "ON ✈️" : "OFF" },
+          { label: "Freeze Player", value: playerFrozen ? "ON ❄️" : "OFF" },
+          {
+            label: "Forced Next Dig",
+            value: forcedRarity ? RARITY_LABELS[forcedRarity] : "Random",
+          },
           {
             label: "Inventory",
             value: `${Object.values(inventory)
@@ -363,8 +490,13 @@ export default function AdminPanel() {
         </div>
         <div className="grid grid-cols-2 gap-1">
           {RARITIES.map((r) => (
-            <div key={r} className="flex justify-between">
-              <span className="text-muted-foreground">{RARITY_LABELS[r]}:</span>
+            <div key={r} className="flex justify-between items-center gap-1">
+              <span
+                className="text-xs font-bold"
+                style={{ color: RARITY_COLORS[r] }}
+              >
+                {RARITY_LABELS[r]}:
+              </span>
               <span className="text-green-300">
                 {(inventory[r] || 0).toLocaleString()}
               </span>
@@ -373,8 +505,587 @@ export default function AdminPanel() {
         </div>
       </div>
 
-      {/* Actions */}
+      {/* GOD MODE toggle */}
+      <div
+        className="rounded-xl p-4"
+        style={{
+          backgroundColor: godMode
+            ? "rgba(255,107,255,0.1)"
+            : "rgba(255,107,255,0.04)",
+          border: `1px solid ${godMode ? "rgba(255,107,255,0.5)" : "rgba(255,107,255,0.2)"}`,
+        }}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Swords className="w-4 h-4 text-pink-400" />
+            <span className="text-sm font-mono text-pink-400 font-bold">
+              God Mode
+            </span>
+            <span className="text-xs text-muted-foreground font-mono">
+              (infinite sell/fuse/exchange)
+            </span>
+          </div>
+          <button
+            type="button"
+            data-ocid="admin.toggle"
+            onClick={() => {
+              adminToggleGodMode();
+              toast.success(
+                godMode
+                  ? "God Mode OFF"
+                  : "🔥 GOD MODE ON — infinite everything!",
+                { duration: 2500 },
+              );
+            }}
+            className="px-4 py-1.5 rounded-lg font-mono font-bold text-sm transition-all"
+            style={{
+              backgroundColor: godMode
+                ? "rgba(255,107,255,0.4)"
+                : "rgba(255,107,255,0.12)",
+              border: "1px solid rgba(255,107,255,0.5)",
+              color: "#ff6bff",
+            }}
+          >
+            {godMode ? "ACTIVE ✓" : "ENABLE"}
+          </button>
+        </div>
+      </div>
+
+      {/* FLY MODE toggle */}
+      <div
+        className="rounded-xl p-4"
+        style={{
+          backgroundColor: flyMode
+            ? "rgba(14,165,233,0.1)"
+            : "rgba(14,165,233,0.04)",
+          border: `1px solid ${flyMode ? "rgba(14,165,233,0.5)" : "rgba(14,165,233,0.2)"}`,
+        }}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Wind className="w-4 h-4 text-sky-400" />
+            <span className="text-sm font-mono text-sky-400 font-bold">
+              Fly Mode
+            </span>
+            {flyMode && (
+              <span
+                className="text-xs font-bold px-2 py-0.5 rounded-full animate-pulse"
+                style={{
+                  background: "rgba(14,165,233,0.2)",
+                  border: "1px solid rgba(14,165,233,0.5)",
+                  color: "#38bdf8",
+                }}
+              >
+                FLY ON ✈️
+              </span>
+            )}
+            <span className="text-xs text-muted-foreground font-mono">
+              (Space = up, Shift = down)
+            </span>
+          </div>
+          <button
+            type="button"
+            data-ocid="admin.toggle"
+            onClick={() => {
+              adminToggleFlyMode();
+              toast.success(flyMode ? "Fly Mode OFF" : "✈️ FLY MODE ON!", {
+                duration: 2000,
+              });
+            }}
+            className="px-4 py-1.5 rounded-lg font-mono font-bold text-sm transition-all"
+            style={{
+              backgroundColor: flyMode
+                ? "rgba(14,165,233,0.4)"
+                : "rgba(14,165,233,0.12)",
+              border: "1px solid rgba(14,165,233,0.5)",
+              color: "#38bdf8",
+            }}
+          >
+            {flyMode ? "ACTIVE ✓" : "ENABLE"}
+          </button>
+        </div>
+      </div>
+
+      {/* FREEZE PLAYER toggle */}
+      <div
+        className="rounded-xl p-4"
+        style={{
+          backgroundColor: playerFrozen
+            ? "rgba(147,197,253,0.1)"
+            : "rgba(147,197,253,0.04)",
+          border: `1px solid ${playerFrozen ? "rgba(147,197,253,0.5)" : "rgba(147,197,253,0.2)"}`,
+        }}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Snowflake className="w-4 h-4 text-blue-300" />
+            <span className="text-sm font-mono text-blue-300 font-bold">
+              Freeze Player
+            </span>
+            {playerFrozen && (
+              <span
+                className="text-xs font-bold px-2 py-0.5 rounded-full animate-pulse"
+                style={{
+                  background: "rgba(147,197,253,0.2)",
+                  border: "1px solid rgba(147,197,253,0.5)",
+                  color: "#bfdbfe",
+                }}
+              >
+                FROZEN ❄️
+              </span>
+            )}
+            <span className="text-xs text-muted-foreground font-mono">
+              (locks WASD movement)
+            </span>
+          </div>
+          <button
+            type="button"
+            data-ocid="admin.toggle"
+            onClick={() => {
+              adminToggleFreezePlayer();
+              toast.success(
+                playerFrozen ? "Player unfrozen." : "❄️ Player FROZEN!",
+                { duration: 2000 },
+              );
+            }}
+            className="px-4 py-1.5 rounded-lg font-mono font-bold text-sm transition-all"
+            style={{
+              backgroundColor: playerFrozen
+                ? "rgba(147,197,253,0.4)"
+                : "rgba(147,197,253,0.12)",
+              border: "1px solid rgba(147,197,253,0.5)",
+              color: "#bfdbfe",
+            }}
+          >
+            {playerFrozen ? "ACTIVE ✓" : "ENABLE"}
+          </button>
+        </div>
+      </div>
+
+      {/* METEORITE SHOWER */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="rounded-xl p-4"
+        style={{
+          backgroundColor: meteorShowerActive
+            ? "rgba(139,92,246,0.18)"
+            : "rgba(139,92,246,0.05)",
+          border: `2px solid ${meteorShowerActive ? "rgba(167,139,250,0.8)" : "rgba(139,92,246,0.3)"}`,
+          boxShadow: meteorShowerActive
+            ? "0 0 24px rgba(139,92,246,0.3)"
+            : "none",
+          transition: "all 0.4s ease",
+        }}
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <Sparkles
+            className={`w-4 h-4 text-violet-400 ${meteorShowerActive ? "animate-spin" : ""}`}
+          />
+          <span className="text-sm font-mono text-violet-400 font-bold">
+            Meteorite Shower
+          </span>
+          {meteorShowerActive && (
+            <span
+              className="text-xs font-bold px-2 py-0.5 rounded-full animate-pulse ml-auto"
+              style={{
+                background: "rgba(139,92,246,0.3)",
+                border: "1px solid rgba(167,139,250,0.6)",
+                color: "#c4b5fd",
+              }}
+            >
+              RAINING ☄️
+            </span>
+          )}
+        </div>
+        <motion.button
+          type="button"
+          data-ocid="admin.secondary_button"
+          onClick={() => {
+            adminTriggerMeteorShower();
+            toast.success(
+              "☄️ METEORITE SHOWER! Meteorites raining for everyone!",
+              { duration: 4000 },
+            );
+          }}
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.96 }}
+          disabled={meteorShowerActive}
+          className="w-full py-3 rounded-xl font-mono font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all disabled:opacity-60"
+          style={{
+            background: meteorShowerActive
+              ? "linear-gradient(135deg, rgba(139,92,246,0.5) 0%, rgba(167,139,250,0.4) 100%)"
+              : "linear-gradient(135deg, rgba(139,92,246,0.3) 0%, rgba(109,40,217,0.3) 100%)",
+            border: "1px solid rgba(139,92,246,0.5)",
+            color: "#c4b5fd",
+            textShadow: "0 0 12px rgba(167,139,250,0.6)",
+          }}
+        >
+          <Sparkles className="w-4 h-4" />
+          {meteorShowerActive
+            ? "SHOWER IN PROGRESS..."
+            : "TRIGGER METEOR SHOWER"}
+        </motion.button>
+        <p className="text-xs text-violet-600 font-mono text-center mt-2">
+          Rains meteorites of all rarities instantly
+        </p>
+      </motion.div>
+
+      {/* FORCE NEXT DIG */}
+      <div
+        className="rounded-xl p-4"
+        style={{
+          backgroundColor: "rgba(6,182,212,0.05)",
+          border: `1px solid ${forcedRarity ? "rgba(6,182,212,0.6)" : "rgba(6,182,212,0.2)"}`,
+        }}
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <Zap className="w-4 h-4 text-cyan-400" />
+          <span className="text-sm font-mono text-cyan-400 font-bold">
+            Force Next Dig
+          </span>
+          {forcedRarity && (
+            <span
+              className="text-xs font-bold px-2 py-0.5 rounded-full ml-auto"
+              style={{
+                background: `${RARITY_COLORS[forcedRarity]}22`,
+                color: RARITY_COLORS[forcedRarity],
+                border: `1px solid ${RARITY_COLORS[forcedRarity]}66`,
+              }}
+            >
+              → {RARITY_LABELS[forcedRarity]}
+            </span>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <select
+            value={nextDigRarity}
+            onChange={(e) => setNextDigRarity(e.target.value as Rarity)}
+            className="flex-1 bg-card border border-border rounded-lg px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-cyan-400/50"
+          >
+            {RARITIES.map((r) => (
+              <option key={r} value={r}>
+                {RARITY_LABELS[r]}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            data-ocid="admin.secondary_button"
+            onClick={handleForceNextDig}
+            className="px-3 py-2 rounded-lg font-mono font-bold text-sm text-cyan-400 transition-all"
+            style={{
+              backgroundColor: "rgba(6,182,212,0.2)",
+              border: "1px solid rgba(6,182,212,0.4)",
+            }}
+          >
+            SET
+          </button>
+          {forcedRarity && (
+            <button
+              type="button"
+              onClick={handleClearNextDig}
+              className="px-3 py-2 rounded-lg font-mono text-sm text-muted-foreground transition-all"
+              style={{
+                backgroundColor: "rgba(255,255,255,0.05)",
+                border: "1px solid oklch(var(--border))",
+              }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground font-mono mt-2">
+          Your next DIG will always give the selected rarity.
+        </p>
+      </div>
+
+      {/* TELEPORT */}
+      <div
+        className="rounded-xl p-4"
+        style={{
+          backgroundColor: "rgba(251,146,60,0.05)",
+          border: "1px solid rgba(251,146,60,0.2)",
+        }}
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <MapPin className="w-4 h-4 text-orange-400" />
+          <span className="text-sm font-mono text-orange-400 font-bold">
+            Teleport
+          </span>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {BUILDINGS.map((b) => (
+            <button
+              type="button"
+              key={b.id}
+              data-ocid="admin.button"
+              onClick={() => handleTeleport(b.id)}
+              className="py-2 rounded-lg font-mono text-xs font-bold transition-all text-center"
+              style={{
+                backgroundColor: `${b.color}18`,
+                border: `1px solid ${b.color}44`,
+                color: b.color,
+              }}
+            >
+              {b.emoji}
+              <br />
+              <span className="text-[10px]">{b.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* SECURITY GUARDS */}
+      <div
+        className="rounded-xl p-4"
+        style={{
+          backgroundColor: "rgba(148,163,184,0.05)",
+          border: "1px solid rgba(148,163,184,0.2)",
+        }}
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <Shield className="w-4 h-4 text-slate-400" />
+          <span className="text-sm font-mono text-slate-400 font-bold">
+            Security Guards
+          </span>
+          <span className="ml-auto text-xs font-mono text-slate-500">
+            active: {securityGuards}
+          </span>
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="number"
+            value={guardInput}
+            onChange={(e) => setGuardInput(e.target.value)}
+            min={1}
+            className="flex-1 bg-transparent border border-border rounded-lg px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-slate-400/50"
+            placeholder="Count..."
+          />
+          <button
+            type="button"
+            data-ocid="admin.save_button"
+            onClick={handleSpawnGuards}
+            className="px-4 py-2 rounded-lg font-mono font-bold text-sm text-slate-300 transition-all"
+            style={{
+              backgroundColor: "rgba(148,163,184,0.2)",
+              border: "1px solid rgba(148,163,184,0.4)",
+            }}
+          >
+            SPAWN
+          </button>
+          <button
+            type="button"
+            onClick={handleRemoveGuards}
+            className="px-3 py-2 rounded-lg font-mono text-xs text-red-400 transition-all"
+            style={{
+              backgroundColor: "rgba(239,68,68,0.1)",
+              border: "1px solid rgba(239,68,68,0.3)",
+            }}
+          >
+            REMOVE ALL
+          </button>
+        </div>
+        <div className="flex gap-1 mt-2">
+          {[1, 5, 10, 50].map((n) => (
+            <button
+              type="button"
+              key={n}
+              onClick={() => {
+                adminSpawnGuards(n);
+                toast.success(`Spawned ${n} guard${n > 1 ? "s" : ""}! 🛡️`);
+              }}
+              className="flex-1 py-1 rounded text-xs font-mono text-slate-500 hover:text-slate-300 transition-colors"
+              style={{ backgroundColor: "rgba(148,163,184,0.06)" }}
+            >
+              +{n}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Move Speed */}
+      <div
+        className="rounded-xl p-4"
+        style={{
+          backgroundColor: "rgba(52,211,153,0.05)",
+          border: "1px solid rgba(52,211,153,0.2)",
+        }}
+      >
+        <div className="flex items-center gap-2 mb-2">
+          <Zap className="w-4 h-4 text-emerald-400" />
+          <span className="text-sm font-mono text-emerald-400 font-bold">
+            Move Speed
+          </span>
+          <span className="ml-auto text-xs font-mono text-emerald-600">
+            current: ×{moveSpeed.toFixed(1)}
+          </span>
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="number"
+            value={speedInput}
+            onChange={(e) => setSpeedInput(e.target.value)}
+            placeholder="×..."
+            className="flex-1 bg-transparent border border-border rounded-lg px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-emerald-400/50"
+            min={0.1}
+            step={0.5}
+            onKeyDown={(e) => e.key === "Enter" && handleSetSpeed()}
+          />
+          <button
+            type="button"
+            onClick={handleSetSpeed}
+            className="px-4 py-2 rounded-lg font-mono font-bold text-sm text-emerald-400 transition-all"
+            style={{
+              backgroundColor: "rgba(52,211,153,0.2)",
+              border: "1px solid rgba(52,211,153,0.4)",
+            }}
+          >
+            SET
+          </button>
+        </div>
+        <div className="flex gap-2 mt-2">
+          {[
+            { label: "Normal", val: 1 },
+            { label: "×3", val: 3 },
+            { label: "×10", val: 10 },
+            { label: "×50", val: 50 },
+          ].map(({ label, val }) => (
+            <button
+              type="button"
+              key={label}
+              onClick={() => {
+                adminSetMoveSpeed(val);
+                toast.success(`Speed set to ×${val}`);
+              }}
+              className="flex-1 py-1 rounded text-xs font-mono text-emerald-600 hover:text-emerald-400 transition-colors"
+              style={{ backgroundColor: "rgba(52,211,153,0.08)" }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="flex flex-col gap-3">
+        {/* One-click Actions */}
+        <div
+          className="rounded-xl p-4"
+          style={{
+            backgroundColor: "rgba(139,92,246,0.05)",
+            border: "1px solid rgba(139,92,246,0.2)",
+          }}
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <Crown className="w-4 h-4 text-purple-400" />
+            <span className="text-sm font-mono text-purple-400 font-bold">
+              One-Click Abuses
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              data-ocid="admin.button"
+              onClick={handle9999All}
+              className="py-2 rounded-lg font-mono font-black text-xs transition-all flex items-center justify-center gap-1"
+              style={{
+                backgroundColor: "rgba(255,107,255,0.2)",
+                border: "1px solid rgba(255,107,255,0.4)",
+                color: "#ff6bff",
+              }}
+            >
+              <Zap className="w-3 h-3" />
+              9999 ALL
+            </button>
+            <button
+              type="button"
+              onClick={handleSellAll}
+              className="py-2 rounded-lg font-mono font-black text-xs transition-all flex items-center justify-center gap-1 text-yellow-400"
+              style={{
+                backgroundColor: "rgba(234,179,8,0.15)",
+                border: "1px solid rgba(234,179,8,0.4)",
+              }}
+            >
+              <ShoppingBag className="w-3 h-3" />
+              SELL ALL
+            </button>
+            <button
+              type="button"
+              onClick={handleFuseAll}
+              className="py-2 rounded-lg font-mono font-black text-xs transition-all flex items-center justify-center gap-1 text-purple-400"
+              style={{
+                backgroundColor: "rgba(139,92,246,0.15)",
+                border: "1px solid rgba(139,92,246,0.4)",
+              }}
+            >
+              <FlaskConical className="w-3 h-3" />
+              FUSE ALL
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                adminSetCredits(999_999_999);
+                toast.success("Credits maxed!");
+              }}
+              className="py-2 rounded-lg font-mono font-black text-xs transition-all flex items-center justify-center gap-1 text-yellow-400"
+              style={{
+                backgroundColor: "rgba(234,179,8,0.15)",
+                border: "1px solid rgba(234,179,8,0.4)",
+              }}
+            >
+              <Coins className="w-3 h-3" />
+              MAX CREDITS
+            </button>
+          </div>
+        </div>
+
+        {/* BROADCAST SPAWN */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="rounded-xl p-4"
+          style={{
+            backgroundColor: "rgba(255,80,0,0.08)",
+            border: "2px solid rgba(255,100,0,0.7)",
+            boxShadow:
+              "0 0 18px rgba(255,80,0,0.18), inset 0 0 24px rgba(255,60,0,0.06)",
+          }}
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <Radio className="w-4 h-4 text-orange-400 animate-pulse" />
+            <span className="text-sm font-mono text-orange-400 font-bold uppercase tracking-wider">
+              Broadcast Spawn
+            </span>
+          </div>
+          <motion.button
+            type="button"
+            data-ocid="admin.primary_button"
+            onClick={handle9999All}
+            whileHover={{
+              scale: 1.03,
+              boxShadow: "0 0 32px rgba(255,100,0,0.45)",
+            }}
+            whileTap={{ scale: 0.96 }}
+            className="w-full py-4 rounded-xl font-mono font-black text-base uppercase tracking-widest flex items-center justify-center gap-2 transition-all"
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(220,38,38,0.45) 0%, rgba(249,115,22,0.45) 50%, rgba(234,179,8,0.35) 100%)",
+              border: "2px solid rgba(255,100,0,0.75)",
+              color: "#fb923c",
+              textShadow: "0 0 18px rgba(255,120,0,0.9)",
+              boxShadow: "0 0 24px rgba(255,80,0,0.25)",
+            }}
+          >
+            <Radio className="w-5 h-5" />
+            SPAWN FOR EVERYONE 🌍
+          </motion.button>
+          <p className="text-xs text-orange-600 font-mono text-center mt-2">
+            Gives 9999 of every rarity instantly
+          </p>
+        </motion.div>
+
         {/* Reset */}
         <button
           type="button"
@@ -427,7 +1138,6 @@ export default function AdminPanel() {
               SET
             </button>
           </div>
-          {/* Quick credit presets: 1K, 100K, 1M, 999M, MAX */}
           <div className="flex gap-1 mt-2 flex-wrap">
             {[
               { label: "1K", val: 1_000 },
@@ -488,12 +1198,12 @@ export default function AdminPanel() {
               SET
             </button>
           </div>
-          {/* Multiplier quick presets */}
           <div className="flex gap-2 mt-2">
             {[
               { label: "×10", val: 10 },
               { label: "×100", val: 100 },
               { label: "×999", val: 999 },
+              { label: "×9999", val: 9999 },
             ].map(({ label, val }) => (
               <button
                 type="button"
@@ -506,6 +1216,63 @@ export default function AdminPanel() {
                 style={{ backgroundColor: "rgba(139,92,246,0.08)" }}
               >
                 {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Set Base Size */}
+        <div
+          className="rounded-xl p-4"
+          style={{
+            backgroundColor: "rgba(34,197,94,0.05)",
+            border: "1px solid rgba(34,197,94,0.2)",
+          }}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <MapPin className="w-4 h-4 text-green-400" />
+            <span className="text-sm font-mono text-green-400">
+              Set Base Size
+            </span>
+            <span className="ml-auto text-xs font-mono text-green-600">
+              current: {baseSize}
+            </span>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              value={baseSizeInput}
+              onChange={(e) => setBaseSizeInput(e.target.value)}
+              placeholder="Size..."
+              className="flex-1 bg-transparent border border-border rounded-lg px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-green-400/50"
+              min={1}
+              onKeyDown={(e) => e.key === "Enter" && handleSetBaseSize()}
+            />
+            <button
+              type="button"
+              onClick={handleSetBaseSize}
+              className="px-4 py-2 rounded-lg font-mono font-bold text-sm text-green-400 transition-all"
+              style={{
+                backgroundColor: "rgba(34,197,94,0.2)",
+                border: "1px solid rgba(34,197,94,0.4)",
+              }}
+            >
+              SET
+            </button>
+          </div>
+          <div className="flex gap-2 mt-2">
+            {[1, 5, 10, 50].map((v) => (
+              <button
+                type="button"
+                key={v}
+                onClick={() => {
+                  adminSetBaseSize(v);
+                  toast.success(`Base size set to ${v}`);
+                }}
+                className="flex-1 py-1 rounded text-xs font-mono text-green-600 hover:text-green-400 transition-colors"
+                style={{ backgroundColor: "rgba(34,197,94,0.08)" }}
+              >
+                {v}
               </button>
             ))}
           </div>
@@ -550,12 +1317,12 @@ export default function AdminPanel() {
               SET
             </button>
           </div>
-          {/* Quick rebirth presets */}
           <div className="flex gap-2 mt-2">
             {[
               { label: "×5", val: 5 },
               { label: "×10", val: 10 },
               { label: "×50", val: 50 },
+              { label: "×100", val: 100 },
             ].map(({ label, val }) => (
               <button
                 type="button"
@@ -621,9 +1388,8 @@ export default function AdminPanel() {
               ADD
             </button>
           </div>
-          {/* Qty quick presets */}
           <div className="flex gap-2 mb-3">
-            {[1, 10, 100, 1000].map((v) => (
+            {[1, 10, 100, 1000, 9999].map((v) => (
               <button
                 type="button"
                 key={v}
@@ -635,7 +1401,6 @@ export default function AdminPanel() {
               </button>
             ))}
           </div>
-          {/* ADD ALL / 9999 ALL */}
           <div className="flex gap-2">
             <button
               type="button"
@@ -650,21 +1415,87 @@ export default function AdminPanel() {
               <FlaskConical className="w-3 h-3" />
               ADD ALL RARITIES
             </button>
-            <button
+          </div>
+        </div>
+
+        {/* DELETE PLAYER DATA — two-step destructive */}
+        <div
+          className="rounded-xl p-4"
+          style={{
+            backgroundColor: deleteConfirm
+              ? "rgba(220,38,38,0.15)"
+              : "rgba(127,0,0,0.08)",
+            border: deleteConfirm
+              ? "2px solid #dc2626"
+              : "1px solid rgba(200,0,0,0.4)",
+          }}
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <Skull className="w-4 h-4 text-red-500" />
+            <span className="text-sm font-mono text-red-400 font-bold uppercase tracking-wider">
+              Danger Zone
+            </span>
+          </div>
+          {deleteConfirm ? (
+            <motion.button
               type="button"
-              data-ocid="admin.button"
-              onClick={handle9999All}
-              className="flex-1 py-2 rounded-lg font-mono font-black text-xs transition-all flex items-center justify-center gap-1"
+              data-ocid="admin.confirm_button"
+              onClick={() => {
+                if (deleteConfirmTimeout.current) {
+                  clearTimeout(deleteConfirmTimeout.current);
+                  deleteConfirmTimeout.current = null;
+                }
+                adminReset();
+                setDeleteConfirm(false);
+                toast.error("💀 ALL PLAYER DATA DELETED", { duration: 3000 });
+              }}
+              animate={{ scale: [1, 1.02, 1] }}
+              transition={{
+                duration: 0.6,
+                repeat: Number.POSITIVE_INFINITY,
+                ease: "easeInOut",
+              }}
+              className="w-full py-4 rounded-xl font-mono font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all"
               style={{
-                backgroundColor: "rgba(255,107,255,0.2)",
-                border: "1px solid rgba(255,107,255,0.4)",
-                color: "#ff6bff",
+                backgroundColor: "rgba(220,38,38,0.4)",
+                border: "2px solid #dc2626",
+                color: "#fca5a5",
+                textShadow: "0 0 16px rgba(239,68,68,0.8)",
+                boxShadow: "0 0 24px rgba(220,38,38,0.3)",
               }}
             >
-              <Zap className="w-3 h-3" />
-              9999 ALL
+              <Skull className="w-5 h-5" />
+              ⚠️ CONFIRM DELETE — CANNOT UNDO
+            </motion.button>
+          ) : (
+            <button
+              type="button"
+              data-ocid="admin.delete_button"
+              onClick={() => {
+                setDeleteConfirm(true);
+                if (deleteConfirmTimeout.current) {
+                  clearTimeout(deleteConfirmTimeout.current);
+                }
+                deleteConfirmTimeout.current = setTimeout(() => {
+                  setDeleteConfirm(false);
+                }, 3000);
+              }}
+              className="w-full py-3 rounded-xl font-mono font-bold text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all"
+              style={{
+                backgroundColor: "rgba(127,0,0,0.2)",
+                border: "1px solid rgba(200,0,0,0.4)",
+                color: "#ff4444",
+              }}
+            >
+              <Skull className="w-4 h-4" />
+              DELETE PLAYER DATA
             </button>
-          </div>
+          )}
+          {deleteConfirm && (
+            <p className="text-xs text-red-400 font-mono text-center mt-2 animate-pulse">
+              Click again to confirm — auto-cancels in 3 seconds
+            </p>
+          )}
         </div>
       </div>
     </div>

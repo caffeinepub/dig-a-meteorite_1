@@ -105,6 +105,14 @@ interface GameState {
   baseSize: number;
   lastDigResult: Rarity | null;
   lastDigTime: number;
+  godMode: boolean;
+  flyMode: boolean;
+  playerFrozen: boolean; // admin freeze player movement
+  meteorShowerActive: boolean; // admin meteorite shower visual/effect
+  moveSpeed: number; // multiplier on MOVE_SPEED constant
+  nextDigRarity: Rarity | null; // admin forced next dig rarity
+  teleportTarget: string | null; // building id to teleport to
+  securityGuards: number; // count of spawned guards
 
   // Actions
   digMeteor: () => Rarity;
@@ -117,6 +125,17 @@ interface GameState {
   adminSetMultiplier: (amount: number) => void;
   adminAddMeteors: (rarity: string, qty: number) => void;
   adminSetRebirth: (count: number) => void;
+  adminSetBaseSize: (size: number) => void;
+  adminSetMoveSpeed: (speed: number) => void;
+  adminToggleGodMode: () => void;
+  adminToggleFlyMode: () => void;
+  adminToggleFreezePlayer: () => void;
+  adminTriggerMeteorShower: () => void;
+  adminSetNextDig: (rarity: Rarity | null) => void;
+  adminTeleportTo: (buildingId: string | null) => void;
+  adminSpawnGuards: (count: number) => void;
+  adminSellAll: () => void;
+  adminFuseAll: () => void;
   clearLastDig: () => void;
 }
 
@@ -146,44 +165,63 @@ export const useGameStore = create<GameState>()(
       baseSize: 1,
       lastDigResult: null,
       lastDigTime: 0,
+      godMode: false,
+      flyMode: false,
+      playerFrozen: false,
+      meteorShowerActive: false,
+      moveSpeed: 1,
+      nextDigRarity: null,
+      teleportTarget: null,
+      securityGuards: 0,
 
       digMeteor: () => {
-        const { multiplier, inventory, totalFound } = get();
-        const rarity = weightedRandom();
+        const { multiplier, inventory, totalFound, godMode, nextDigRarity } =
+          get();
+        const rarity = nextDigRarity ?? weightedRandom();
         const newInventory = { ...inventory };
 
         for (let i = 0; i < multiplier; i++) {
-          const r = i === 0 ? rarity : weightedRandom();
+          const r = i === 0 ? rarity : (nextDigRarity ?? weightedRandom());
           newInventory[r] = (newInventory[r] || 0) + 1;
         }
+
+        // God mode: also add bonus credits on every dig
+        const bonusCredits = godMode
+          ? (SELL_PRICES[rarity] || 1) * multiplier * 10
+          : 0;
 
         set({
           inventory: newInventory,
           totalFound: totalFound + multiplier,
           lastDigResult: rarity,
           lastDigTime: Date.now(),
+          credits: get().credits + bonusCredits,
+          nextDigRarity: null, // consume forced rarity
         });
 
         return rarity;
       },
 
       sellMeteor: (rarity: string, qty: number) => {
-        const { inventory, credits } = get();
+        const { inventory, credits, godMode } = get();
         const available = inventory[rarity] || 0;
-        if (available < qty) return false;
+        if (!godMode && available < qty) return false;
 
         const price = SELL_PRICES[rarity as Rarity] || 0;
         const earned = price * qty;
 
         set({
-          inventory: { ...inventory, [rarity]: available - qty },
+          inventory: {
+            ...inventory,
+            [rarity]: godMode ? available : available - qty,
+          },
           credits: credits + earned,
         });
         return true;
       },
 
       fuseMeteors: (rarity: string) => {
-        const { inventory } = get();
+        const { inventory, godMode } = get();
         const rarityIndex = RARITIES.indexOf(rarity as Rarity);
 
         if (rarityIndex === -1 || rarityIndex >= RARITIES.length - 1) {
@@ -191,12 +229,12 @@ export const useGameStore = create<GameState>()(
         }
 
         const available = inventory[rarity] || 0;
-        if (available < 3) return { success: false, result: "" };
+        if (!godMode && available < 3) return { success: false, result: "" };
 
         const nextRarity = RARITIES[rarityIndex + 1];
         const newInventory = {
           ...inventory,
-          [rarity]: available - 3,
+          [rarity]: godMode ? available : available - 3,
           [nextRarity]: (inventory[nextRarity] || 0) + 1,
         };
 
@@ -205,15 +243,18 @@ export const useGameStore = create<GameState>()(
       },
 
       exchangeForCredits: (rarity: string, qty: number) => {
-        const { inventory, credits } = get();
+        const { inventory, credits, godMode } = get();
         const available = inventory[rarity] || 0;
-        if (available < qty) return 0;
+        if (!godMode && available < qty) return 0;
 
         const rate = EXCHANGE_RATES[rarity as Rarity] || 0;
         const earned = rate * qty;
 
         set({
-          inventory: { ...inventory, [rarity]: available - qty },
+          inventory: {
+            ...inventory,
+            [rarity]: godMode ? available : available - qty,
+          },
           credits: credits + earned,
         });
         return earned;
@@ -245,6 +286,13 @@ export const useGameStore = create<GameState>()(
           totalFound: 0,
           baseSize: 1,
           lastDigResult: null,
+          godMode: false,
+          flyMode: false,
+          playerFrozen: false,
+          meteorShowerActive: false,
+          moveSpeed: 1,
+          nextDigRarity: null,
+          securityGuards: 0,
         });
       },
 
@@ -274,6 +322,93 @@ export const useGameStore = create<GameState>()(
           baseSize: safeCount + 1,
           multiplier: safeCount + 1,
         });
+      },
+
+      adminSetBaseSize: (size: number) => {
+        set({ baseSize: Math.max(1, size) });
+      },
+
+      adminSetMoveSpeed: (speed: number) => {
+        set({ moveSpeed: Math.max(0.1, Math.min(50, speed)) });
+      },
+
+      adminToggleGodMode: () => {
+        set((state) => ({ godMode: !state.godMode }));
+      },
+
+      adminToggleFlyMode: () => {
+        set((state) => ({ flyMode: !state.flyMode }));
+      },
+
+      adminToggleFreezePlayer: () => {
+        set((state) => ({ playerFrozen: !state.playerFrozen }));
+      },
+
+      adminTriggerMeteorShower: () => {
+        // Add a random haul of meteorites across all rarities
+        const { inventory, totalFound } = get();
+        const newInventory = { ...inventory };
+        let added = 0;
+        for (const rarity of RARITIES) {
+          // Higher rarities get fewer, lower rarities get more
+          const rarityIndex = RARITIES.indexOf(rarity);
+          const qty = Math.max(1, Math.floor(50 / (rarityIndex + 1)));
+          newInventory[rarity] = (newInventory[rarity] || 0) + qty;
+          added += qty;
+        }
+        set({
+          inventory: newInventory,
+          totalFound: totalFound + added,
+          meteorShowerActive: true,
+        });
+        // Auto-turn off shower visual after 4 seconds
+        setTimeout(() => {
+          set({ meteorShowerActive: false });
+        }, 4000);
+      },
+
+      adminSetNextDig: (rarity: Rarity | null) => {
+        set({ nextDigRarity: rarity });
+      },
+
+      adminTeleportTo: (buildingId: string | null) => {
+        set({ teleportTarget: buildingId });
+      },
+
+      adminSpawnGuards: (count: number) => {
+        set((state) => ({
+          securityGuards: Math.max(0, state.securityGuards + count),
+        }));
+      },
+
+      adminSellAll: () => {
+        const { inventory, credits } = get();
+        let earned = 0;
+        const newInventory = { ...defaultInventory };
+        for (const rarity of RARITIES) {
+          const qty = inventory[rarity] || 0;
+          if (qty > 0) {
+            earned += (SELL_PRICES[rarity] || 0) * qty;
+          }
+        }
+        set({ inventory: newInventory, credits: credits + earned });
+      },
+
+      adminFuseAll: () => {
+        // Repeatedly fuse from lowest rarity upward until nothing can be fused
+        const { inventory } = get();
+        const newInv = { ...inventory };
+        for (let i = 0; i < RARITIES.length - 1; i++) {
+          const rarity = RARITIES[i];
+          const available = newInv[rarity] || 0;
+          const fuseCount = Math.floor(available / 3);
+          if (fuseCount > 0) {
+            newInv[rarity] = available - fuseCount * 3;
+            const next = RARITIES[i + 1];
+            newInv[next] = (newInv[next] || 0) + fuseCount;
+          }
+        }
+        set({ inventory: newInv });
       },
 
       clearLastDig: () => {

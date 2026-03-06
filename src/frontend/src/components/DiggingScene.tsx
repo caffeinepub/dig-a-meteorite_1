@@ -1,4 +1,4 @@
-import { Sky } from "@react-three/drei";
+import { Html, Sky } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
   Coins,
@@ -6,6 +6,8 @@ import {
   Package,
   RotateCcw,
   ShoppingBag,
+  Volume2,
+  VolumeX,
   X,
   Zap,
 } from "lucide-react";
@@ -34,9 +36,9 @@ import SellShop from "./SellShop";
 type ActivePanel = "fuse" | "credits" | "shop" | "rebirth" | "inventory" | null;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const MOVE_SPEED = 6;
-const CAM_DIST = 5.5; // distance behind player
-const CAM_HEIGHT = 3.5; // height above player
+const BASE_MOVE_SPEED = 6;
+const CAM_DIST = 3.5; // distance behind player
+const CAM_HEIGHT = 2.8; // height above player
 const CAM_FOV = 75;
 
 // ─── Earth Layer ─────────────────────────────────────────────────────────────
@@ -346,19 +348,613 @@ function PlayerCharacter({
   );
 }
 
+// ─── Buildings ───────────────────────────────────────────────────────────────
+const BUILDINGS = [
+  {
+    id: "fuse" as const,
+    pos: [-25, 0, -15] as [number, number, number],
+    color: "#7c3aed",
+    label: "Fuse Machine",
+    emoji: "⚗️",
+  },
+  {
+    id: "inventory" as const,
+    pos: [25, 0, -15] as [number, number, number],
+    color: "#eab308",
+    label: "Museum",
+    emoji: "🏛️",
+  },
+  {
+    id: "shop" as const,
+    pos: [-25, 0, 15] as [number, number, number],
+    color: "#22c55e",
+    label: "Sell Shop",
+    emoji: "🛒",
+  },
+  {
+    id: "rebirth" as const,
+    pos: [25, 0, 15] as [number, number, number],
+    color: "#f97316",
+    label: "Rebirth Altar",
+    emoji: "🔄",
+  },
+  {
+    id: "credits" as const,
+    pos: [0, 0, -30] as [number, number, number],
+    color: "#eab308",
+    label: "Credits Machine",
+    emoji: "💰",
+  },
+];
+
+function Building({
+  id,
+  position,
+  color,
+  label,
+  emoji,
+  isNear,
+}: {
+  id: string;
+  position: [number, number, number];
+  color: string;
+  label: string;
+  emoji: string;
+  isNear: boolean;
+}) {
+  const glowRef = useRef<THREE.PointLight>(null);
+  const orbRef = useRef<THREE.Mesh>(null);
+  const t = useRef(0);
+
+  useFrame((_s, delta) => {
+    t.current += delta;
+    if (glowRef.current) {
+      glowRef.current.intensity = 1.8 + Math.sin(t.current * 2.5) * 0.7;
+    }
+    if (orbRef.current) {
+      orbRef.current.position.y = 5.5 + Math.sin(t.current * 2) * 0.25;
+      orbRef.current.rotation.y += delta * 1.2;
+    }
+  });
+
+  const [bx, , bz] = position;
+
+  // Different building shapes per type
+  const renderStructure = () => {
+    switch (id) {
+      case "fuse":
+        // Tall cylindrical tower — purple/violet
+        return (
+          <>
+            {/* Tower base */}
+            <mesh position={[0, 1.5, 0]} castShadow>
+              <cylinderGeometry args={[1.2, 1.6, 3, 8]} />
+              <meshStandardMaterial
+                color={color}
+                roughness={0.4}
+                metalness={0.6}
+                emissive={color}
+                emissiveIntensity={0.12}
+              />
+            </mesh>
+            {/* Tower mid-ring */}
+            <mesh position={[0, 3.1, 0]} castShadow>
+              <cylinderGeometry args={[0.9, 1.2, 0.5, 8]} />
+              <meshStandardMaterial
+                color="#9f5fff"
+                roughness={0.3}
+                metalness={0.8}
+              />
+            </mesh>
+            {/* Tower top */}
+            <mesh position={[0, 3.8, 0]} castShadow>
+              <cylinderGeometry args={[0.3, 0.9, 1.2, 8]} />
+              <meshStandardMaterial
+                color="#c084fc"
+                roughness={0.2}
+                metalness={0.9}
+              />
+            </mesh>
+            {/* Glowing orb on top */}
+            <mesh ref={orbRef} position={[0, 5.5, 0]}>
+              <sphereGeometry args={[0.4, 16, 16]} />
+              <meshStandardMaterial
+                color="#e9d5ff"
+                emissive={color}
+                emissiveIntensity={2}
+                roughness={0.1}
+                metalness={0.3}
+              />
+            </mesh>
+            {/* Windows */}
+            {[-1, 0, 1].map((i) => (
+              <mesh key={i} position={[0, 1.5 + i * 0.9, 1.21]} castShadow>
+                <boxGeometry args={[0.3, 0.25, 0.05]} />
+                <meshStandardMaterial
+                  color="#e9d5ff"
+                  emissive="#9f5fff"
+                  emissiveIntensity={1.5}
+                />
+              </mesh>
+            ))}
+          </>
+        );
+
+      case "inventory":
+        // Museum — gold/amber, wide with columns
+        return (
+          <>
+            {/* Main hall */}
+            <mesh position={[0, 1.5, 0]} castShadow>
+              <boxGeometry args={[6, 3, 4]} />
+              <meshStandardMaterial
+                color="#92400e"
+                roughness={0.6}
+                metalness={0.3}
+              />
+            </mesh>
+            {/* Roof pediment */}
+            <mesh position={[0, 3.3, 0]} castShadow>
+              <boxGeometry args={[6.4, 0.5, 4.4]} />
+              <meshStandardMaterial
+                color={color}
+                roughness={0.4}
+                metalness={0.5}
+                emissive={color}
+                emissiveIntensity={0.1}
+              />
+            </mesh>
+            {/* Triangle roof */}
+            <mesh position={[0, 4.0, 0]} castShadow rotation={[0, 0, 0]}>
+              <coneGeometry args={[3.5, 1.4, 4]} />
+              <meshStandardMaterial
+                color="#b45309"
+                roughness={0.5}
+                metalness={0.4}
+              />
+            </mesh>
+            {/* Columns */}
+            {[-2, -0.7, 0.7, 2].map((cx) => (
+              <mesh key={cx} position={[cx, 1.5, 2.1]} castShadow>
+                <cylinderGeometry args={[0.2, 0.22, 3, 8]} />
+                <meshStandardMaterial
+                  color={color}
+                  roughness={0.3}
+                  metalness={0.5}
+                />
+              </mesh>
+            ))}
+            {/* Door */}
+            <mesh position={[0, 0.9, 2.05]}>
+              <boxGeometry args={[0.9, 1.8, 0.05]} />
+              <meshStandardMaterial
+                color="#78350f"
+                roughness={0.7}
+                metalness={0.1}
+              />
+            </mesh>
+            {/* Glowing orb */}
+            <mesh ref={orbRef} position={[0, 5.5, 0]}>
+              <sphereGeometry args={[0.35, 16, 16]} />
+              <meshStandardMaterial
+                color="#fef3c7"
+                emissive={color}
+                emissiveIntensity={2}
+                roughness={0.1}
+              />
+            </mesh>
+          </>
+        );
+
+      case "shop":
+        // Shop — green, box with awning
+        return (
+          <>
+            {/* Main building */}
+            <mesh position={[0, 1.5, 0]} castShadow>
+              <boxGeometry args={[5, 3, 3.5]} />
+              <meshStandardMaterial
+                color="#166534"
+                roughness={0.6}
+                metalness={0.1}
+              />
+            </mesh>
+            {/* Roof */}
+            <mesh position={[0, 3.2, 0]} castShadow>
+              <boxGeometry args={[5.4, 0.4, 3.9]} />
+              <meshStandardMaterial
+                color={color}
+                roughness={0.5}
+                metalness={0.3}
+                emissive={color}
+                emissiveIntensity={0.1}
+              />
+            </mesh>
+            {/* Awning */}
+            <mesh position={[0, 2.0, 1.95]} rotation={[-0.35, 0, 0]} castShadow>
+              <boxGeometry args={[4.8, 0.12, 1.6]} />
+              <meshStandardMaterial
+                color="#4ade80"
+                roughness={0.7}
+                metalness={0.05}
+              />
+            </mesh>
+            {/* Sign */}
+            <mesh position={[0, 3.55, 1.85]} castShadow>
+              <boxGeometry args={[3, 0.6, 0.15]} />
+              <meshStandardMaterial
+                color={color}
+                emissive={color}
+                emissiveIntensity={0.5}
+                roughness={0.3}
+              />
+            </mesh>
+            {/* Windows */}
+            {[-1.2, 1.2].map((wx) => (
+              <mesh key={wx} position={[wx, 1.7, 1.77]}>
+                <boxGeometry args={[1.0, 0.9, 0.05]} />
+                <meshStandardMaterial
+                  color="#bbf7d0"
+                  emissive="#86efac"
+                  emissiveIntensity={0.8}
+                />
+              </mesh>
+            ))}
+            {/* Glowing orb */}
+            <mesh ref={orbRef} position={[0, 4.8, 0]}>
+              <sphereGeometry args={[0.32, 16, 16]} />
+              <meshStandardMaterial
+                color="#d1fae5"
+                emissive={color}
+                emissiveIntensity={2}
+                roughness={0.1}
+              />
+            </mesh>
+          </>
+        );
+
+      case "credits":
+        // Credits Machine — gold ATM/coin machine
+        return (
+          <>
+            {/* Main body */}
+            <mesh position={[0, 2.0, 0]} castShadow>
+              <boxGeometry args={[2.8, 4, 1.6]} />
+              <meshStandardMaterial
+                color="#92400e"
+                roughness={0.5}
+                metalness={0.4}
+              />
+            </mesh>
+            {/* Front panel */}
+            <mesh position={[0, 2.0, 0.82]} castShadow>
+              <boxGeometry args={[2.4, 3.6, 0.12]} />
+              <meshStandardMaterial
+                color={color}
+                roughness={0.3}
+                metalness={0.7}
+                emissive={color}
+                emissiveIntensity={0.15}
+              />
+            </mesh>
+            {/* Coin slot */}
+            <mesh position={[0, 3.2, 0.94]}>
+              <boxGeometry args={[0.8, 0.1, 0.08]} />
+              <meshStandardMaterial color="#1a1a1a" roughness={0.9} />
+            </mesh>
+            {/* Screen */}
+            <mesh position={[0, 2.6, 0.94]}>
+              <boxGeometry args={[1.6, 0.9, 0.06]} />
+              <meshStandardMaterial
+                color="#fef08a"
+                emissive="#eab308"
+                emissiveIntensity={1.2}
+                roughness={0.1}
+              />
+            </mesh>
+            {/* Coin symbols on front */}
+            {[-0.5, 0.5].map((cx) => (
+              <mesh key={cx} position={[cx, 1.6, 0.94]}>
+                <cylinderGeometry args={[0.22, 0.22, 0.06, 12]} />
+                <meshStandardMaterial
+                  color="#fbbf24"
+                  emissive="#f59e0b"
+                  emissiveIntensity={0.8}
+                  roughness={0.2}
+                  metalness={0.9}
+                />
+              </mesh>
+            ))}
+            {/* Dispenser tray */}
+            <mesh position={[0, 0.55, 0.9]} castShadow>
+              <boxGeometry args={[1.4, 0.22, 0.5]} />
+              <meshStandardMaterial
+                color="#78350f"
+                roughness={0.6}
+                metalness={0.3}
+              />
+            </mesh>
+            {/* Glowing gold orb on top */}
+            <mesh ref={orbRef} position={[0, 4.8, 0]}>
+              <sphereGeometry args={[0.38, 16, 16]} />
+              <meshStandardMaterial
+                color="#fef9c3"
+                emissive={color}
+                emissiveIntensity={2.5}
+                roughness={0.1}
+                metalness={0.5}
+              />
+            </mesh>
+          </>
+        );
+
+      default:
+        // Rebirth Altar — orange/fire, shrine shape
+        return (
+          <>
+            {/* Altar base platform */}
+            <mesh position={[0, 0.35, 0]} castShadow>
+              <boxGeometry args={[5, 0.7, 5]} />
+              <meshStandardMaterial
+                color="#7c2d12"
+                roughness={0.7}
+                metalness={0.3}
+              />
+            </mesh>
+            {/* Center pillar */}
+            <mesh position={[0, 2.2, 0]} castShadow>
+              <cylinderGeometry args={[0.6, 0.8, 3.5, 8]} />
+              <meshStandardMaterial
+                color="#c2410c"
+                roughness={0.5}
+                metalness={0.4}
+                emissive="#92400e"
+                emissiveIntensity={0.2}
+              />
+            </mesh>
+            {/* Side torches */}
+            {(
+              [
+                [-1.8, 0, -1.8],
+                [1.8, 0, -1.8],
+                [-1.8, 0, 1.8],
+                [1.8, 0, 1.8],
+              ] as [number, number, number][]
+            ).map(([tx, , tz]) => (
+              <group key={`torch-${tx}-${tz}`} position={[tx, 1.8, tz]}>
+                <mesh>
+                  <cylinderGeometry args={[0.1, 0.12, 1.4, 6]} />
+                  <meshStandardMaterial color="#6b3d1e" roughness={0.9} />
+                </mesh>
+                <mesh position={[0, 0.85, 0]}>
+                  <sphereGeometry args={[0.18, 8, 8]} />
+                  <meshStandardMaterial
+                    color="#fed7aa"
+                    emissive={color}
+                    emissiveIntensity={3}
+                  />
+                </mesh>
+                <pointLight
+                  position={[0, 1.0, 0]}
+                  color={color}
+                  intensity={1.2}
+                  distance={4}
+                />
+              </group>
+            ))}
+            {/* Glowing fire orb on top */}
+            <mesh ref={orbRef} position={[0, 4.4, 0]}>
+              <sphereGeometry args={[0.5, 16, 16]} />
+              <meshStandardMaterial
+                color="#fed7aa"
+                emissive={color}
+                emissiveIntensity={3}
+                roughness={0.1}
+              />
+            </mesh>
+          </>
+        );
+    }
+  };
+
+  return (
+    <group position={[bx, 0.2, bz]}>
+      {renderStructure()}
+      {/* Point light above building */}
+      <pointLight
+        ref={glowRef}
+        position={[0, 6.5, 0]}
+        color={color}
+        intensity={2.5}
+        distance={14}
+      />
+      {/* Floating HTML label */}
+      <Html
+        position={[0, 7.2, 0]}
+        center
+        distanceFactor={28}
+        occlude={false}
+        style={{ pointerEvents: "none" }}
+      >
+        <div
+          style={{
+            background: "rgba(0,0,0,0.78)",
+            color,
+            border: `1.5px solid ${color}`,
+            borderRadius: "8px",
+            padding: "4px 10px",
+            fontFamily: "monospace",
+            fontSize: "13px",
+            fontWeight: 700,
+            whiteSpace: "nowrap",
+            boxShadow: `0 0 12px 3px ${color}55`,
+            letterSpacing: "0.06em",
+            backdropFilter: "blur(6px)",
+          }}
+        >
+          {emoji} {label}
+        </div>
+      </Html>
+      {/* Near prompt */}
+      {isNear && (
+        <Html
+          position={[0, 5.8, 0]}
+          center
+          distanceFactor={28}
+          occlude={false}
+          style={{ pointerEvents: "none" }}
+        >
+          <div
+            style={{
+              background: "rgba(255,255,255,0.92)",
+              color: "#111",
+              borderRadius: "6px",
+              padding: "3px 10px",
+              fontFamily: "monospace",
+              fontSize: "11px",
+              fontWeight: 700,
+              whiteSpace: "nowrap",
+              animation: "pulse 1s infinite",
+              letterSpacing: "0.04em",
+            }}
+          >
+            Press E to open
+          </div>
+        </Html>
+      )}
+    </group>
+  );
+}
+
+// ─── Tree Decoration ─────────────────────────────────────────────────────────
+function Tree({
+  position,
+  height,
+  spread,
+}: {
+  position: [number, number, number];
+  height: number;
+  spread: number;
+}) {
+  return (
+    <group position={position}>
+      {/* Trunk */}
+      <mesh position={[0, height * 0.3, 0]} castShadow>
+        <cylinderGeometry args={[0.15, 0.2, height * 0.6, 6]} />
+        <meshStandardMaterial color="#5c3a1e" roughness={0.9} />
+      </mesh>
+      {/* Foliage - bottom */}
+      <mesh position={[0, height * 0.7, 0]} castShadow>
+        <coneGeometry args={[spread, height * 0.6, 7]} />
+        <meshStandardMaterial color="#166534" roughness={0.8} />
+      </mesh>
+      {/* Foliage - top */}
+      <mesh position={[0, height * 0.95, 0]} castShadow>
+        <coneGeometry args={[spread * 0.7, height * 0.45, 7]} />
+        <meshStandardMaterial color="#15803d" roughness={0.8} />
+      </mesh>
+    </group>
+  );
+}
+
+function MapEdgeTrees() {
+  const trees = useMemo(() => {
+    const result: {
+      key: string;
+      pos: [number, number, number];
+      height: number;
+      spread: number;
+    }[] = [];
+    // Seeded pseudo-random for stable values
+    let seed = 42;
+    const rand = () => {
+      seed = (seed * 1664525 + 1013904223) & 0xffffffff;
+      return (seed >>> 0) / 0xffffffff;
+    };
+
+    const spacing = 5;
+    const edgeMin = -48;
+    const edgeMax = 48;
+
+    for (let x = edgeMin; x <= edgeMax; x += spacing) {
+      // North edge (z = -48)
+      result.push({
+        key: `n-${x}`,
+        pos: [x, 0.2, -48 - rand() * 2],
+        height: 3 + rand() * 2,
+        spread: 1.2 + rand() * 0.6,
+      });
+      // South edge (z = 48)
+      result.push({
+        key: `s-${x}`,
+        pos: [x, 0.2, 48 + rand() * 2],
+        height: 3 + rand() * 2,
+        spread: 1.2 + rand() * 0.6,
+      });
+    }
+    for (let z = edgeMin; z <= edgeMax; z += spacing) {
+      // West edge (x = -48)
+      result.push({
+        key: `w-${z}`,
+        pos: [-48 - rand() * 2, 0.2, z],
+        height: 3 + rand() * 2,
+        spread: 1.2 + rand() * 0.6,
+      });
+      // East edge (x = 48)
+      result.push({
+        key: `e-${z}`,
+        pos: [48 + rand() * 2, 0.2, z],
+        height: 3 + rand() * 2,
+        spread: 1.2 + rand() * 0.6,
+      });
+    }
+
+    return result;
+  }, []);
+
+  return (
+    <>
+      {trees.map((t) => (
+        <Tree
+          key={t.key}
+          position={t.pos}
+          height={t.height}
+          spread={t.spread}
+        />
+      ))}
+    </>
+  );
+}
+
 // ─── Third-Person Scene ───────────────────────────────────────────────────────
 function ThirdPersonScene({
   baseSize,
   onDig,
   keysHeld,
   yawRef,
+  pitchRef,
   isDigging,
+  onFall,
+  onOpenPanel,
+  moveSpeedMultiplier,
+  teleportTarget,
+  onTeleportDone,
+  flyMode,
+  playerFrozen,
 }: {
   baseSize: number;
   onDig: () => void;
   keysHeld: React.RefObject<Set<string>>;
   yawRef: React.RefObject<number>;
+  pitchRef: React.RefObject<number>;
   isDigging: boolean;
+  onFall?: () => void;
+  onOpenPanel?: (panel: Exclude<ActivePanel, null>) => void;
+  moveSpeedMultiplier?: number;
+  teleportTarget?: string | null;
+  onTeleportDone?: () => void;
+  flyMode?: boolean;
+  playerFrozen?: boolean;
 }) {
   const [particles, setParticles] = useState<
     { id: number; pos: [number, number, number] }[]
@@ -366,12 +962,31 @@ function ThirdPersonScene({
   const [showCrater, setShowCrater] = useState(false);
   const particleId = useRef(0);
   const [isMoving, setIsMoving] = useState(false);
+  const [nearBuilding, setNearBuilding] = useState<string | null>(null);
+  const openedBuildingRef = useRef<string | null>(null); // debounce: track which was last opened
 
   const playerRef = useRef<THREE.Group | null>(null);
   const playerPos = useRef({ x: 0, z: 5 });
+  const playerY = useRef(0); // vertical position, 0 = ground
+  const playerVelY = useRef(0); // vertical velocity
   const playerFacing = useRef(0); // yaw of player body
+  const isFalling = useRef(false);
 
   const { camera } = useThree();
+
+  // E key: open the nearby building's panel
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "KeyE" && nearBuilding) {
+        const building = BUILDINGS.find((b) => b.id === nearBuilding);
+        if (building) {
+          onOpenPanel?.(building.id);
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [nearBuilding, onOpenPanel]);
 
   useFrame((_s, delta) => {
     const keys = keysHeld.current;
@@ -380,15 +995,35 @@ function ThirdPersonScene({
 
     if (!keys) return;
 
-    if (keys.has("KeyW") || keys.has("ArrowUp")) dz -= 1;
-    if (keys.has("KeyS") || keys.has("ArrowDown")) dz += 1;
-    if (keys.has("KeyA") || keys.has("ArrowLeft")) dx -= 1;
-    if (keys.has("KeyD") || keys.has("ArrowRight")) dx += 1;
+    // Freeze movement input while falling off the map or when admin-frozen
+    if (!isFalling.current && !playerFrozen) {
+      // W = forward (away from camera), S = backward, A = left, D = right
+      if (keys.has("KeyW") || keys.has("ArrowUp")) dz += 1;
+      if (keys.has("KeyS") || keys.has("ArrowDown")) dz -= 1;
+      if (keys.has("KeyA") || keys.has("ArrowLeft")) dx -= 1;
+      if (keys.has("KeyD") || keys.has("ArrowRight")) dx += 1;
+    }
 
     const moving = dx !== 0 || dz !== 0;
     setIsMoving(moving);
 
     const currentYaw = yawRef.current ?? 0;
+    const currentPitch = pitchRef.current ?? 0;
+    const speed = BASE_MOVE_SPEED * (moveSpeedMultiplier ?? 1);
+
+    // Handle teleport command
+    if (teleportTarget) {
+      const building = BUILDINGS.find((b) => b.id === teleportTarget);
+      if (building) {
+        const [bx, , bz] = building.pos;
+        playerPos.current.x = bx;
+        playerPos.current.z = bz + 8; // slightly in front of building
+        playerY.current = 0;
+        playerVelY.current = 0;
+        isFalling.current = false;
+      }
+      onTeleportDone?.();
+    }
 
     if (moving) {
       const len = Math.sqrt(dx * dx + dz * dz);
@@ -396,26 +1031,68 @@ function ThirdPersonScene({
       const nz = dz / len;
       const sinY = Math.sin(currentYaw);
       const cosY = Math.cos(currentYaw);
-      const worldDx = (cosY * nx - sinY * nz) * MOVE_SPEED * delta;
-      const worldDz = (sinY * nx + cosY * nz) * MOVE_SPEED * delta;
+      // Forward direction is opposite of camera-behind-player offset
+      // Camera is at player + (sinY * CAM_DIST, cosY * CAM_DIST)
+      // So forward = (-sinY, -cosY), right = (cosY, -sinY)
+      const worldDx = (-sinY * nz + cosY * nx) * speed * delta;
+      const worldDz = (-cosY * nz - sinY * nx) * speed * delta;
 
-      playerPos.current.x = Math.max(
-        -45,
-        Math.min(45, playerPos.current.x + worldDx),
-      );
-      playerPos.current.z = Math.max(
-        -30,
-        Math.min(30, playerPos.current.z + worldDz),
-      );
+      const newX = playerPos.current.x + worldDx;
+      const newZ = playerPos.current.z + worldDz;
+
+      playerPos.current.x = newX;
+      playerPos.current.z = newZ;
+
+      // Trigger fall when player walks off the map edge (ground ends at ~50 units)
+      // Skip fall detection when fly mode is active
+      if (
+        (Math.abs(newX) > 50 || Math.abs(newZ) > 50) &&
+        !isFalling.current &&
+        !flyMode
+      ) {
+        isFalling.current = true;
+        playerVelY.current = 0; // drop immediately, no upward hop
+        onFall?.();
+        setTimeout(() => {
+          playerPos.current.x = 0;
+          playerPos.current.z = 0;
+          playerY.current = 0;
+          playerVelY.current = 0;
+          isFalling.current = false;
+        }, 3400);
+      }
 
       // Rotate player body toward movement direction
       const moveAngle = Math.atan2(worldDx, worldDz) + Math.PI;
       playerFacing.current = moveAngle;
     }
 
+    // Fly mode: allow vertical movement with Space (up) and ShiftLeft/KeyC (down)
+    if (flyMode) {
+      // Snap to ground when fly mode is first disabled
+      isFalling.current = false;
+      playerVelY.current = 0;
+      if (keys.has("Space")) {
+        playerY.current += speed * delta * 0.8;
+      } else if (keys.has("ShiftLeft") || keys.has("KeyC")) {
+        playerY.current = Math.max(0, playerY.current - speed * delta * 0.8);
+      }
+    } else if (isFalling.current) {
+      // Apply gravity when falling off the map
+      playerVelY.current -= 18 * delta; // gravity acceleration
+      playerY.current += playerVelY.current * delta;
+    } else {
+      // Snap back to ground when not falling
+      if (playerY.current > 0) {
+        playerY.current = 0;
+      }
+      playerVelY.current = 0;
+    }
+
     // Update player mesh position & rotation
     if (playerRef.current) {
       playerRef.current.position.x = playerPos.current.x;
+      playerRef.current.position.y = playerY.current;
       playerRef.current.position.z = playerPos.current.z;
       // Smoothly rotate player to face movement direction
       if (moving) {
@@ -423,19 +1100,52 @@ function ThirdPersonScene({
       }
     }
 
-    // Third-person camera: position behind and above player
+    // Third-person camera with pitch (up/down look)
+    // Orbit around player at yaw + pitch
     const sinCam = Math.sin(currentYaw);
     const cosCam = Math.cos(currentYaw);
-    const camX = playerPos.current.x + sinCam * CAM_DIST;
-    const camZ = playerPos.current.z + cosCam * CAM_DIST;
-    const camY = 0.75 + CAM_HEIGHT; // player stands at y≈0, center at ~0.75
+    const cosPitch = Math.cos(currentPitch);
+    const sinPitch = Math.sin(currentPitch);
+    const camDist = CAM_DIST;
+    const camX = playerPos.current.x + sinCam * camDist * cosPitch;
+    const camZ = playerPos.current.z + cosCam * camDist * cosPitch;
+    const camY =
+      playerY.current + 1.8 + CAM_HEIGHT * cosPitch + sinPitch * camDist;
 
     camera.position.set(camX, camY, camZ);
+    // Look at player center, offset slightly up/down based on pitch
     camera.lookAt(
       playerPos.current.x,
-      1.5, // look at player chest height
+      playerY.current + 1.8 - sinPitch * 2,
       playerPos.current.z,
     );
+
+    // Building proximity check — update nearBuilding state
+    let closestBuilding: string | null = null;
+    let closestDist = 7; // proximity threshold
+    for (const building of BUILDINGS) {
+      const [bx, , bz] = building.pos;
+      const dist = Math.sqrt(
+        (playerPos.current.x - bx) ** 2 + (playerPos.current.z - bz) ** 2,
+      );
+      if (dist < closestDist) {
+        closestDist = dist;
+        closestBuilding = building.id;
+      }
+    }
+    setNearBuilding(closestBuilding);
+
+    // Auto-open when walking into building (within 5 units), once per approach
+    if (closestBuilding && closestDist < 5) {
+      if (openedBuildingRef.current !== closestBuilding) {
+        openedBuildingRef.current = closestBuilding;
+        const building = BUILDINGS.find((b) => b.id === closestBuilding);
+        if (building) onOpenPanel?.(building.id);
+      }
+    } else if (!closestBuilding) {
+      // Reset when far from all buildings
+      openedBuildingRef.current = null;
+    }
   });
 
   const handleDig = useCallback(() => {
@@ -528,6 +1238,22 @@ function ThirdPersonScene({
           onDone={() => removeParticle(p.id)}
         />
       ))}
+
+      {/* Buildings on the map */}
+      {BUILDINGS.map((b) => (
+        <Building
+          key={b.id}
+          id={b.id}
+          position={b.pos}
+          color={b.color}
+          label={b.label}
+          emoji={b.emoji}
+          isNear={nearBuilding === b.id}
+        />
+      ))}
+
+      {/* Edge Trees */}
+      <MapEdgeTrees />
 
       {/* Player Character */}
       <PlayerCharacter
@@ -778,28 +1504,119 @@ function getPanelTitle(panel: Exclude<ActivePanel, null>) {
   }
 }
 
+// ─── Fall Sound ───────────────────────────────────────────────────────────────
+function playFallSound() {
+  try {
+    const ctx = new AudioContext();
+    const gainNode = ctx.createGain();
+    gainNode.gain.setValueAtTime(0.65, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2.8);
+
+    // Main oscillator — "aaaaahhhhh" falling tone
+    const osc = ctx.createOscillator();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(380, ctx.currentTime);
+    osc.frequency.setValueAtTime(350, ctx.currentTime + 0.1);
+    osc.frequency.exponentialRampToValueAtTime(75, ctx.currentTime + 2.4);
+
+    // Second oscillator — add vibrato / wobble
+    const osc2 = ctx.createOscillator();
+    osc2.type = "sawtooth";
+    osc2.frequency.setValueAtTime(385, ctx.currentTime);
+    osc2.frequency.exponentialRampToValueAtTime(78, ctx.currentTime + 2.4);
+    const osc2Gain = ctx.createGain();
+    osc2Gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    osc2Gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2.8);
+
+    // Voice-like bandpass filter — shapes the "fhhhaaaa"
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.setValueAtTime(900, ctx.currentTime);
+    filter.frequency.exponentialRampToValueAtTime(180, ctx.currentTime + 2.4);
+    filter.Q.value = 4;
+
+    // Noise layer — the "fhhh" fricative texture at the start
+    const bufferSize = Math.ceil(ctx.sampleRate * 2.8);
+    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+    const noiseSource = ctx.createBufferSource();
+    noiseSource.buffer = noiseBuffer;
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.18, ctx.currentTime);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
+
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = "highpass";
+    noiseFilter.frequency.value = 1800;
+
+    // Wire it all up
+    osc.connect(filter);
+    filter.connect(gainNode);
+
+    osc2.connect(osc2Gain);
+    osc2Gain.connect(gainNode);
+
+    noiseSource.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(gainNode);
+
+    gainNode.connect(ctx.destination);
+
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 2.8);
+    osc2.start(ctx.currentTime);
+    osc2.stop(ctx.currentTime + 2.8);
+    noiseSource.start(ctx.currentTime);
+    noiseSource.stop(ctx.currentTime + 2.8);
+
+    // Close the context after playback finishes
+    setTimeout(() => ctx.close(), 3200);
+  } catch {
+    // AudioContext not available — silently ignore
+  }
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function DiggingScene() {
-  const { credits, totalFound, baseSize, multiplier, digMeteor } =
-    useGameStore();
+  const {
+    credits,
+    totalFound,
+    baseSize,
+    multiplier,
+    digMeteor,
+    moveSpeed,
+    flyMode,
+    playerFrozen,
+    meteorShowerActive,
+    teleportTarget,
+    adminTeleportTo,
+  } = useGameStore();
   const [currentReveal, setCurrentReveal] = useState<{
     rarity: Rarity;
     id: number;
   } | null>(null);
   const [isDigging, setIsDigging] = useState(false);
   const [shakeContainer, setShakeContainer] = useState(false);
+  const [fallEffect, setFallEffect] = useState(false);
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
+  const [musicOn, setMusicOn] = useState(false);
+  const musicCtxRef = useRef<AudioContext | null>(null);
   const popupId = useRef(0);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const panelButtonsRef = useRef<HTMLDivElement>(null);
+  const fallCooldown = useRef(false);
 
   // Shared refs for third-person controls
   const keysHeld = useRef<Set<string>>(new Set<string>());
   const yawRef = useRef<number>(0);
+  const pitchRef = useRef<number>(0); // vertical look angle
 
   // Mouse drag state (fallback for browsers without pointer lock)
   const isDragging = useRef(false);
   const lastMouseX = useRef(0);
+  const lastMouseY = useRef(0);
   const [isPointerLocked, setIsPointerLocked] = useState(false);
 
   // Auto-focus canvas on mount so WASD works immediately
@@ -808,6 +1625,16 @@ export default function DiggingScene() {
       canvasContainerRef.current.tabIndex = 0;
       canvasContainerRef.current.focus();
     }
+  }, []);
+
+  // Cleanup music on unmount
+  useEffect(() => {
+    return () => {
+      if (musicCtxRef.current) {
+        musicCtxRef.current.close();
+        musicCtxRef.current = null;
+      }
+    };
   }, []);
 
   // Release pointer lock whenever a panel is opened so UI is fully interactive
@@ -827,6 +1654,11 @@ export default function DiggingScene() {
     const onMouseMove = (e: MouseEvent) => {
       if (document.pointerLockElement === canvasContainerRef.current) {
         yawRef.current -= e.movementX * 0.003;
+        // Vertical look: clamp pitch between -60° and +60°
+        pitchRef.current = Math.max(
+          -Math.PI / 3,
+          Math.min(Math.PI / 3, pitchRef.current - e.movementY * 0.003),
+        );
       }
     };
     document.addEventListener("pointerlockchange", onPointerLockChange);
@@ -849,6 +1681,7 @@ export default function DiggingScene() {
       "ArrowLeft",
       "ArrowRight",
       "Space",
+      "ShiftLeft",
     ]);
     const onKeyDown = (e: KeyboardEvent) => {
       keysHeld.current.add(e.code);
@@ -881,6 +1714,7 @@ export default function DiggingScene() {
     // Fallback drag tracking
     isDragging.current = true;
     lastMouseX.current = e.clientX;
+    lastMouseY.current = e.clientY;
   }, []);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
@@ -888,8 +1722,14 @@ export default function DiggingScene() {
     if (document.pointerLockElement) return;
     if (!isDragging.current) return;
     const dx = e.clientX - lastMouseX.current;
+    const dy = e.clientY - lastMouseY.current;
     lastMouseX.current = e.clientX;
+    lastMouseY.current = e.clientY;
     yawRef.current -= dx * 0.003;
+    pitchRef.current = Math.max(
+      -Math.PI / 3,
+      Math.min(Math.PI / 3, pitchRef.current - dy * 0.003),
+    );
   }, []);
 
   const stopDrag = useCallback(() => {
@@ -906,6 +1746,100 @@ export default function DiggingScene() {
     setTimeout(() => setIsDigging(false), 350);
     setTimeout(() => setShakeContainer(false), 400);
   }, [isDigging, digMeteor]);
+
+  const handleFall = useCallback(() => {
+    if (fallCooldown.current) return;
+    fallCooldown.current = true;
+    playFallSound();
+    setFallEffect(true);
+    setTimeout(() => {
+      setFallEffect(false);
+      fallCooldown.current = false;
+    }, 3500);
+  }, []);
+
+  const toggleMusic = useCallback(() => {
+    if (musicOn) {
+      // Turn off — close AudioContext
+      if (musicCtxRef.current) {
+        musicCtxRef.current.close();
+        musicCtxRef.current = null;
+      }
+      setMusicOn(false);
+    } else {
+      // Turn on — create epic/adventure loop with Web Audio API
+      try {
+        const ctx = new AudioContext();
+        musicCtxRef.current = ctx;
+
+        const masterGain = ctx.createGain();
+        masterGain.gain.setValueAtTime(0.12, ctx.currentTime);
+        masterGain.connect(ctx.destination);
+
+        // Drone pad — low sawtooth with heavy lowpass
+        const droneOsc = ctx.createOscillator();
+        droneOsc.type = "sawtooth";
+        droneOsc.frequency.value = 110;
+        const droneFilter = ctx.createBiquadFilter();
+        droneFilter.type = "lowpass";
+        droneFilter.frequency.value = 400;
+        droneFilter.Q.value = 2;
+        const droneGain = ctx.createGain();
+        droneGain.gain.value = 0.35;
+        droneOsc.connect(droneFilter);
+        droneFilter.connect(droneGain);
+        droneGain.connect(masterGain);
+        droneOsc.start();
+
+        // Melody — simple repeating epic pattern
+        const melodyNotes = [
+          220, 261.63, 293.66, 329.63, 392, 440, 392, 329.63,
+        ];
+        const noteDuration = 0.5;
+        let time = ctx.currentTime;
+
+        const scheduleMelody = () => {
+          for (let cycle = 0; cycle < 8; cycle++) {
+            for (let i = 0; i < melodyNotes.length; i++) {
+              const osc = ctx.createOscillator();
+              osc.type = "triangle";
+              osc.frequency.value = melodyNotes[i];
+              const noteGain = ctx.createGain();
+              noteGain.gain.setValueAtTime(0, time);
+              noteGain.gain.linearRampToValueAtTime(
+                0.55,
+                time + noteDuration * 0.1,
+              );
+              noteGain.gain.setValueAtTime(0.5, time + noteDuration * 0.8);
+              noteGain.gain.linearRampToValueAtTime(0, time + noteDuration);
+              osc.connect(noteGain);
+              noteGain.connect(masterGain);
+              osc.start(time);
+              osc.stop(time + noteDuration);
+              time += noteDuration;
+            }
+          }
+        };
+
+        scheduleMelody();
+
+        // Harmony pad — fifth above drone
+        const harmOsc = ctx.createOscillator();
+        harmOsc.type = "sine";
+        harmOsc.frequency.value = 165; // A2 fifth
+        const harmGain = ctx.createGain();
+        harmGain.gain.value = 0.15;
+        harmOsc.connect(harmGain);
+        harmGain.connect(masterGain);
+        harmOsc.start();
+
+        // Store droneOsc and harmOsc on ctx for cleanup via close()
+      } catch {
+        // AudioContext not available — silently ignore
+      }
+      setMusicOn(true);
+    }
+  }, [musicOn]);
 
   const togglePanel = useCallback((id: Exclude<ActivePanel, null>) => {
     document.exitPointerLock();
@@ -940,7 +1874,7 @@ export default function DiggingScene() {
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <div className="bg-card/80 backdrop-blur-sm border border-border rounded-lg px-3 py-1.5">
             <span className="text-xs text-muted-foreground font-mono">
               ×{multiplier}
@@ -953,6 +1887,23 @@ export default function DiggingScene() {
             </span>
             <div className="text-xs text-green-400 font-mono">BASE</div>
           </div>
+          <button
+            type="button"
+            data-ocid="dig.music_toggle"
+            onClick={toggleMusic}
+            className="bg-card/80 backdrop-blur-sm border border-border rounded-lg px-3 py-1.5 flex items-center gap-1.5 pointer-events-auto"
+            title={musicOn ? "Turn music off" : "Turn music on"}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {musicOn ? (
+              <Volume2 className="w-3.5 h-3.5 text-green-400" />
+            ) : (
+              <VolumeX className="w-3.5 h-3.5 text-muted-foreground" />
+            )}
+            <span className="text-xs font-mono text-muted-foreground">
+              {musicOn ? "Music ON" : "Music"}
+            </span>
+          </button>
         </div>
       </div>
 
@@ -984,13 +1935,72 @@ export default function DiggingScene() {
       <div
         ref={canvasContainerRef}
         data-ocid="dig.canvas_target"
-        className={`flex-1 outline-none ${shakeContainer ? "animate-dig-shake" : ""}`}
+        className={`relative flex-1 outline-none ${shakeContainer ? "animate-dig-shake" : ""} ${fallEffect ? "fall-shake" : ""}`}
         style={{ minHeight: 0 }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={stopDrag}
         onPointerLeave={stopDrag}
       >
+        {/* Red vignette flash + YOU FELL HAHAHAHA when falling off the map */}
+        <AnimatePresence>
+          {fallEffect && (
+            <>
+              <motion.div
+                key="fall-flash"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0, 0.55, 0.55, 0] }}
+                exit={{ opacity: 0 }}
+                transition={{
+                  duration: 3,
+                  times: [0, 0.08, 0.6, 1],
+                  ease: "easeInOut",
+                }}
+                className="pointer-events-none absolute inset-0"
+                style={{
+                  zIndex: 60,
+                  background:
+                    "radial-gradient(ellipse at center, transparent 30%, rgba(220, 38, 38, 0.7) 100%)",
+                }}
+              />
+              <motion.div
+                key="fall-text"
+                initial={{ opacity: 0, scale: 0.4, y: 40 }}
+                animate={{
+                  opacity: [0, 1, 1, 0],
+                  scale: [0.4, 1.2, 1.0, 1.0],
+                  y: [40, -10, 0, 0],
+                }}
+                exit={{ opacity: 0 }}
+                transition={{
+                  duration: 3,
+                  times: [0, 0.15, 0.35, 1],
+                  ease: "easeOut",
+                }}
+                className="pointer-events-none absolute inset-0 flex items-center justify-center"
+                style={{ zIndex: 61 }}
+              >
+                <span
+                  style={{
+                    fontFamily: "monospace",
+                    fontWeight: 900,
+                    fontSize: "clamp(2rem, 6vw, 4rem)",
+                    color: "#ff2222",
+                    textShadow:
+                      "0 0 30px #ff0000, 0 0 60px #ff000088, 2px 2px 0 #000, -2px -2px 0 #000",
+                    letterSpacing: "0.06em",
+                    userSelect: "none",
+                    textAlign: "center",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  YOU FELL HAHAHAHA
+                </span>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
         <Canvas
           shadows
           camera={{
@@ -1006,7 +2016,15 @@ export default function DiggingScene() {
               onDig={handleDig}
               keysHeld={keysHeld}
               yawRef={yawRef}
+              pitchRef={pitchRef}
               isDigging={isDigging}
+              onFall={handleFall}
+              onOpenPanel={togglePanel}
+              moveSpeedMultiplier={moveSpeed}
+              teleportTarget={teleportTarget}
+              onTeleportDone={() => adminTeleportTo(null)}
+              flyMode={flyMode}
+              playerFrozen={playerFrozen}
             />
           </Suspense>
         </Canvas>
@@ -1023,6 +2041,100 @@ export default function DiggingScene() {
           />
         )}
       </AnimatePresence>
+
+      {/* Meteorite Shower Overlay */}
+      <AnimatePresence>
+        {meteorShowerActive && (
+          <motion.div
+            key="meteor-shower"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 pointer-events-none z-30 overflow-hidden"
+          >
+            {/* Rain of meteorite emojis - static keys to avoid index key lint */}
+            {[
+              "m0",
+              "m1",
+              "m2",
+              "m3",
+              "m4",
+              "m5",
+              "m6",
+              "m7",
+              "m8",
+              "m9",
+              "m10",
+              "m11",
+              "m12",
+              "m13",
+              "m14",
+              "m15",
+              "m16",
+              "m17",
+              "m18",
+              "m19",
+              "m20",
+              "m21",
+              "m22",
+              "m23",
+              "m24",
+              "m25",
+              "m26",
+              "m27",
+              "m28",
+              "m29",
+            ].map((id, i) => (
+              <motion.div
+                key={id}
+                initial={{ y: -80, opacity: 1 }}
+                animate={{ y: "110vh", opacity: [1, 1, 0] }}
+                transition={{
+                  duration: 1.5 + (i % 5) * 0.4,
+                  delay: (i % 10) * 0.3,
+                  ease: "easeIn",
+                }}
+                className="absolute text-2xl"
+                style={{ left: `${(i * 37 + 5) % 100}%` }}
+              >
+                ☄️
+              </motion.div>
+            ))}
+            {/* Banner */}
+            <motion.div
+              initial={{ y: -60, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -60, opacity: 0 }}
+              className="absolute top-8 left-1/2 -translate-x-1/2 px-8 py-4 rounded-2xl font-mono font-black text-xl uppercase tracking-widest text-center"
+              style={{
+                background:
+                  "linear-gradient(135deg, rgba(139,92,246,0.8) 0%, rgba(109,40,217,0.8) 100%)",
+                border: "2px solid rgba(167,139,250,0.8)",
+                color: "#e9d5ff",
+                textShadow: "0 0 20px rgba(167,139,250,0.9)",
+                boxShadow: "0 0 40px rgba(139,92,246,0.5)",
+              }}
+            >
+              ☄️ METEORITE SHOWER! ☄️
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Freeze Player Indicator */}
+      {playerFrozen && (
+        <div
+          className="absolute top-4 left-1/2 -translate-x-1/2 px-6 py-2 rounded-xl font-mono font-black text-sm uppercase tracking-widest z-30 pointer-events-none animate-pulse"
+          style={{
+            background: "rgba(147,197,253,0.25)",
+            border: "2px solid rgba(147,197,253,0.6)",
+            color: "#bfdbfe",
+            textShadow: "0 0 12px rgba(147,197,253,0.8)",
+          }}
+        >
+          ❄️ PLAYER FROZEN ❄️
+        </div>
+      )}
 
       {/* Quick-Access Panel Buttons — left side */}
       <div
