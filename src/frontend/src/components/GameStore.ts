@@ -117,6 +117,7 @@ interface GameState {
   museumPlots: Record<number, Rarity | null>; // plotIndex -> rarity placed there
   maxMuseumPlots: number; // total available plots (grows with rebirth)
   fuseSlots: number; // number of fuse machine slots (starts at 3, +1 per rebirth)
+  museumLastCollect: number; // timestamp of last museum income collection
 
   // Actions
   digMeteor: () => Rarity;
@@ -145,6 +146,7 @@ interface GameState {
   placeInMuseum: (plotIndex: number, rarity: Rarity) => boolean;
   removeFromMuseum: (plotIndex: number) => void;
   clearMuseumPlot: (plotIndex: number) => void;
+  collectMuseumIncome: () => number; // collect pending income from displayed meteorites
 }
 
 function weightedRandom(): Rarity {
@@ -185,6 +187,7 @@ export const useGameStore = create<GameState>()(
       museumPlots: {},
       maxMuseumPlots: 6,
       fuseSlots: 3,
+      museumLastCollect: Date.now(),
 
       digMeteor: () => {
         const { multiplier, inventory, totalFound, godMode, nextDigRarity } =
@@ -327,6 +330,7 @@ export const useGameStore = create<GameState>()(
           museumPlots: {},
           maxMuseumPlots: 6,
           fuseSlots: 3,
+          museumLastCollect: Date.now(),
         });
       },
 
@@ -490,6 +494,28 @@ export const useGameStore = create<GameState>()(
       clearMuseumPlot: (plotIndex: number) => {
         const { museumPlots } = get();
         set({ museumPlots: { ...museumPlots, [plotIndex]: null } });
+      },
+
+      collectMuseumIncome: () => {
+        const { museumPlots, museumLastCollect, credits, multiplier } = get();
+        const now = Date.now();
+        const secondsElapsed = (now - museumLastCollect) / 1000;
+        if (secondsElapsed < 1) return 0;
+
+        // Each displayed meteorite generates income per second based on its sell price
+        // Rate: sell_price * 0.1 per second per meteorite
+        let totalIncome = 0;
+        for (const rarity of Object.values(museumPlots)) {
+          if (rarity) {
+            const rate = (SELL_PRICES[rarity] || 1) * 0.1;
+            totalIncome += rate * secondsElapsed;
+          }
+        }
+        totalIncome = Math.floor(totalIncome * multiplier);
+        if (totalIncome <= 0) return 0;
+
+        set({ credits: credits + totalIncome, museumLastCollect: now });
+        return totalIncome;
       },
     }),
     {

@@ -1,11 +1,13 @@
-import { Landmark, Lock, Plus, Trash2, X } from "lucide-react";
+import { Coins, Landmark, Plus, Trash2, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
   RARITIES,
   RARITY_COLORS,
   RARITY_LABELS,
   type Rarity,
+  SELL_PRICES,
   useGameStore,
 } from "./GameStore";
 
@@ -337,11 +339,43 @@ export default function InventoryPanel() {
     museumPlots,
     maxMuseumPlots,
     removeFromMuseum,
+    collectMuseumIncome,
+    museumLastCollect,
+    multiplier,
   } = useGameStore();
   const [pickerPlot, setPickerPlot] = useState<number | null>(null);
+  const [pendingIncome, setPendingIncome] = useState(0);
 
   const totalItems = Object.values(inventory).reduce((a, b) => a + b, 0);
   const placedCount = Object.values(museumPlots).filter(Boolean).length;
+
+  // Calculate pending income every second
+  useEffect(() => {
+    const tick = () => {
+      const now = Date.now();
+      const secondsElapsed = (now - museumLastCollect) / 1000;
+      let total = 0;
+      for (const rarity of Object.values(museumPlots)) {
+        if (rarity) {
+          const rate = (SELL_PRICES[rarity] || 1) * 0.1;
+          total += rate * secondsElapsed;
+        }
+      }
+      setPendingIncome(Math.floor(total * multiplier));
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [museumPlots, museumLastCollect, multiplier]);
+
+  const handleCollect = () => {
+    const earned = collectMuseumIncome();
+    if (earned > 0) {
+      toast.success(`Collected ${earned.toLocaleString()} ✦ from your museum!`);
+    } else {
+      toast("Nothing to collect yet — place meteorites to start earning!");
+    }
+  };
 
   // Build array of plots
   const plots: Array<Rarity | null> = Array.from(
@@ -458,6 +492,49 @@ export default function InventoryPanel() {
               </span>
             </div>
           </motion.div>
+
+          {/* Museum Income Collector */}
+          {placedCount > 0 && (
+            <motion.button
+              type="button"
+              data-ocid="museum.collect.primary_button"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              onClick={handleCollect}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
+              className="flex items-center gap-3 mt-2 px-6 py-3 rounded-2xl font-mono font-black text-sm uppercase tracking-widest transition-all"
+              style={{
+                background:
+                  pendingIncome > 0
+                    ? "linear-gradient(135deg, rgba(201,168,76,0.35) 0%, rgba(240,208,128,0.25) 100%)"
+                    : "rgba(201,168,76,0.08)",
+                border: `2px solid ${pendingIncome > 0 ? "#c9a84c" : "#c9a84c44"}`,
+                color: pendingIncome > 0 ? "#f0d080" : "#c9a84c66",
+                boxShadow:
+                  pendingIncome > 0 ? "0 0 24px rgba(201,168,76,0.3)" : "none",
+              }}
+            >
+              <Coins className="w-4 h-4" />
+              Collect{" "}
+              {pendingIncome > 0
+                ? `+${pendingIncome.toLocaleString()} ✦`
+                : "Income"}
+              {pendingIncome > 0 && (
+                <motion.span
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{
+                    duration: 1.5,
+                    repeat: Number.POSITIVE_INFINITY,
+                  }}
+                  className="text-lg"
+                >
+                  💰
+                </motion.span>
+              )}
+            </motion.button>
+          )}
         </div>
 
         <div
