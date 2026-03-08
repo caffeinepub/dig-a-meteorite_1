@@ -114,6 +114,7 @@ interface GameState {
   teleportTarget: string | null; // building id to teleport to
   securityGuards: number; // count of spawned guards
   isPublic: boolean; // public or private profile/museum visibility
+  announcement: string; // admin broadcast announcement message (empty = no announcement)
   museumPlots: Record<number, Rarity | null>; // plotIndex -> rarity placed there
   maxMuseumPlots: number; // total available plots (grows with rebirth)
   fuseSlots: number; // number of fuse machine slots (starts at 3, +1 per rebirth)
@@ -141,6 +142,8 @@ interface GameState {
   adminSpawnGuards: (count: number) => void;
   adminSellAll: () => void;
   adminFuseAll: () => void;
+  adminAnnounce: (message: string) => void;
+  adminClearAnnouncement: () => void;
   clearLastDig: () => void;
   setPublic: (value: boolean) => void;
   placeInMuseum: (plotIndex: number, rarity: Rarity) => boolean;
@@ -184,6 +187,7 @@ export const useGameStore = create<GameState>()(
       teleportTarget: null,
       securityGuards: 0,
       isPublic: true,
+      announcement: "",
       museumPlots: {},
       maxMuseumPlots: 6,
       fuseSlots: 3,
@@ -327,6 +331,7 @@ export const useGameStore = create<GameState>()(
           moveSpeed: 1,
           nextDigRarity: null,
           securityGuards: 0,
+          announcement: "",
           museumPlots: {},
           maxMuseumPlots: 6,
           fuseSlots: 3,
@@ -431,6 +436,14 @@ export const useGameStore = create<GameState>()(
           }
         }
         set({ inventory: newInventory, credits: credits + earned });
+      },
+
+      adminAnnounce: (message: string) => {
+        set({ announcement: message.trim() });
+      },
+
+      adminClearAnnouncement: () => {
+        set({ announcement: "" });
       },
 
       adminFuseAll: () => {

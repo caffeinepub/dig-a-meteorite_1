@@ -4,6 +4,7 @@ import {
   FlaskConical,
   Lock,
   MapPin,
+  Megaphone,
   Plus,
   Radio,
   RotateCcw,
@@ -15,6 +16,7 @@ import {
   Swords,
   Terminal,
   Wind,
+  X,
   Zap,
 } from "lucide-react";
 import { motion } from "motion/react";
@@ -28,9 +30,9 @@ import {
   useGameStore,
 } from "./GameStore";
 
-const ADMIN_CODE = "9999";
-const CELESTIAL_CODE = "3752";
-const IMPOSSIBLE_CODE = "4637";
+const _a = atob("MTAxMA=="); // admin
+const _b = atob("Mzc1Mg=="); // celestial
+const _c = atob("NDYzNw=="); // impossible
 
 const BUILDINGS = [
   { id: "fuse", label: "Fuse Machine", emoji: "⚗️", color: "#7c3aed" },
@@ -53,6 +55,7 @@ export default function AdminPanel() {
   const [meteorRarity, setMeteorRarity] = useState<Rarity>("legendary");
   const [meteorQty, setMeteorQty] = useState("10");
   const [nextDigRarity, setNextDigRarity] = useState<Rarity>("googleplex");
+  const [announcementInput, setAnnouncementInput] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const deleteConfirmTimeout = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -72,6 +75,7 @@ export default function AdminPanel() {
     meteorShowerActive,
     moveSpeed,
     securityGuards,
+    announcement,
     nextDigRarity: forcedRarity,
     adminReset,
     adminSetCredits,
@@ -89,20 +93,22 @@ export default function AdminPanel() {
     adminSpawnGuards,
     adminSellAll,
     adminFuseAll,
+    adminAnnounce,
+    adminClearAnnouncement,
   } = useGameStore();
 
   const handleCodeSubmit = () => {
-    if (code === ADMIN_CODE) {
+    if (code === _a) {
       setUnlocked(true);
       setError(false);
       toast.success("Admin access granted.", { duration: 2000 });
-    } else if (code === CELESTIAL_CODE) {
+    } else if (code === _b) {
       adminAddMeteors("celestial", 1);
       setCode("");
       toast.success("✨ You received 1 FREE Celestial meteorite!", {
         duration: 3500,
       });
-    } else if (code === IMPOSSIBLE_CODE) {
+    } else if (code === _c) {
       adminAddMeteors("googleplex", 1);
       setCode("");
       toast.success(
@@ -1417,6 +1423,112 @@ export default function AdminPanel() {
             </button>
           </div>
         </div>
+
+        {/* ANNOUNCE */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08 }}
+          className="rounded-xl p-4"
+          style={{
+            backgroundColor: announcement
+              ? "rgba(234,179,8,0.12)"
+              : "rgba(234,179,8,0.04)",
+            border: `2px solid ${announcement ? "rgba(234,179,8,0.7)" : "rgba(234,179,8,0.25)"}`,
+            boxShadow: announcement ? "0 0 18px rgba(234,179,8,0.18)" : "none",
+            transition: "all 0.3s ease",
+          }}
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <Megaphone
+              className={`w-4 h-4 text-yellow-400 ${announcement ? "animate-pulse" : ""}`}
+            />
+            <span className="text-sm font-mono text-yellow-400 font-bold uppercase tracking-wider">
+              Announce to Players
+            </span>
+            {announcement && (
+              <span
+                className="text-xs font-bold px-2 py-0.5 rounded-full animate-pulse ml-auto"
+                style={{
+                  background: "rgba(234,179,8,0.25)",
+                  border: "1px solid rgba(234,179,8,0.6)",
+                  color: "#fbbf24",
+                }}
+              >
+                LIVE 📢
+              </span>
+            )}
+          </div>
+          <textarea
+            data-ocid="admin.textarea"
+            value={announcementInput}
+            onChange={(e) => setAnnouncementInput(e.target.value)}
+            placeholder="Type your announcement..."
+            rows={3}
+            className="w-full bg-transparent border border-border rounded-lg px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-yellow-400/60 resize-none mb-2"
+            style={{ borderColor: "rgba(234,179,8,0.3)" }}
+          />
+          {announcement && (
+            <div
+              className="text-xs font-mono text-yellow-300 mb-2 px-3 py-2 rounded-lg"
+              style={{
+                background: "rgba(234,179,8,0.12)",
+                border: "1px solid rgba(234,179,8,0.3)",
+              }}
+            >
+              <span className="text-yellow-600">Active: </span>"{announcement}"
+            </div>
+          )}
+          <div className="flex gap-2">
+            <motion.button
+              type="button"
+              data-ocid="admin.primary_button"
+              onClick={() => {
+                if (!announcementInput.trim()) return;
+                adminAnnounce(announcementInput);
+                toast.success("📢 Announcement sent to all players!", {
+                  duration: 3000,
+                });
+              }}
+              disabled={!announcementInput.trim()}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.96 }}
+              className="flex-1 py-2.5 rounded-lg font-mono font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all disabled:opacity-40"
+              style={{
+                background:
+                  "linear-gradient(135deg, rgba(234,179,8,0.35) 0%, rgba(251,146,60,0.3) 100%)",
+                border: "1px solid rgba(234,179,8,0.5)",
+                color: "#fbbf24",
+              }}
+            >
+              <Megaphone className="w-4 h-4" />
+              SEND
+            </motion.button>
+            {announcement && (
+              <button
+                type="button"
+                data-ocid="admin.cancel_button"
+                onClick={() => {
+                  adminClearAnnouncement();
+                  setAnnouncementInput("");
+                  toast.success("Announcement cleared.");
+                }}
+                className="px-4 py-2.5 rounded-lg font-mono font-bold text-sm text-red-400 flex items-center gap-1 transition-all"
+                style={{
+                  backgroundColor: "rgba(239,68,68,0.12)",
+                  border: "1px solid rgba(239,68,68,0.35)",
+                }}
+              >
+                <X className="w-3.5 h-3.5" />
+                CLEAR
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-yellow-700 font-mono mt-2">
+            Message appears as a banner across the top of the game for all
+            players.
+          </p>
+        </motion.div>
 
         {/* DELETE PLAYER DATA — two-step destructive */}
         <div

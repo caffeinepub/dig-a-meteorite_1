@@ -4,9 +4,11 @@ import {
   Home,
   Landmark,
   Lock,
+  Megaphone,
   Pickaxe,
   RotateCcw,
   ShoppingBag,
+  X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
@@ -93,8 +95,33 @@ function renderTab(tab: Tab, onNavigate: (t: string) => void) {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>("home");
-  const { credits, totalFound } = useGameStore();
+  const [announcementDismissed, setAnnouncementDismissed] = useState(false);
+  const [lastAnnouncementSeen, setLastAnnouncementSeen] = useState("");
+  const { credits, totalFound, announcement } = useGameStore();
   const playerCount = usePlayerCount();
+
+  // Reset dismissal when a new announcement arrives
+  const effectiveAnnouncement =
+    announcement && announcement !== lastAnnouncementSeen
+      ? announcement
+      : announcement && !announcementDismissed
+        ? announcement
+        : "";
+
+  const handleDismissAnnouncement = () => {
+    setAnnouncementDismissed(true);
+    setLastAnnouncementSeen(announcement);
+  };
+
+  // When new announcement comes in, re-show it
+  if (
+    announcement &&
+    announcement !== lastAnnouncementSeen &&
+    announcementDismissed
+  ) {
+    setAnnouncementDismissed(false);
+    setLastAnnouncementSeen(announcement);
+  }
 
   const formatNum = (n: number) => {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -188,6 +215,40 @@ export default function App() {
           </span>
         </div>
       </div>
+
+      {/* Announcement Banner */}
+      <AnimatePresence>
+        {effectiveAnnouncement && (
+          <motion.div
+            key="announcement-banner"
+            data-ocid="announcement.panel"
+            initial={{ y: -60, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -60, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 28 }}
+            className="flex-shrink-0 flex items-center gap-3 px-4 py-2.5 z-50"
+            style={{
+              background:
+                "linear-gradient(90deg, rgba(234,179,8,0.28) 0%, rgba(251,146,60,0.22) 60%, rgba(234,179,8,0.18) 100%)",
+              borderBottom: "2px solid rgba(234,179,8,0.55)",
+              boxShadow: "0 2px 24px rgba(234,179,8,0.18)",
+            }}
+          >
+            <Megaphone className="w-4 h-4 text-yellow-400 flex-shrink-0 animate-pulse" />
+            <span className="text-sm font-mono text-yellow-200 font-bold flex-1 truncate">
+              {effectiveAnnouncement}
+            </span>
+            <button
+              type="button"
+              data-ocid="announcement.close_button"
+              onClick={handleDismissAnnouncement}
+              className="flex-shrink-0 p-1 rounded text-yellow-500 hover:text-yellow-300 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main content */}
       <div className="flex-1 overflow-hidden relative">
